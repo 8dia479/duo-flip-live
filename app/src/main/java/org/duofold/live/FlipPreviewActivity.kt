@@ -2,6 +2,7 @@ package org.duofold.live
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -120,6 +121,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text("Preview noise deadband: ${String.format(java.util.Locale.US, "%.1f", deadband)}° (0 = raw)")
       Slider(value = deadband, onValueChange = { deadband = it }, valueRange = 0f..3f)
       Text("$shizukuStatus · read-only status, not used by preview")
+      Text(remember { samsungWallpaperStatus() })
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        OutlinedButton(onClick = { recording = !recording }) { Text(if (recording) "Stop recording" else "Record sensor") }
        OutlinedButton(onClick = { records.clear(); recordCount = 0; displayEvents.clear(); displayEventCount = 0 }) { Text("Clear") }
@@ -179,6 +181,17 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   } else status = "Rejected invalid or out-of-order sensor sample; last value retained"
  }
  override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+ private fun samsungWallpaperStatus(): String {
+  val component = ComponentName("com.samsung.android.wallpaper.live", "com.samsung.android.wallpaper.live.fold.FoldInteractive")
+  return try {
+   packageManager.getServiceInfo(component, 0)
+   "Samsung FoldInteractive component is visible. Angle responses and compatibility are NOT verified; no wallpaper changed."
+  } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+   "Samsung FoldInteractive component not visible or unavailable; this does not establish Flip support."
+  } catch (e: SecurityException) {
+   "Cannot inspect Samsung wallpaper component due to package visibility or permission."
+  }
+ }
  private fun displaySnapshot(): String {
   val displays = displayManager.displays
   val innerCount = displays.count { FlipDiagnostics.panelCandidate(it.mode.physicalWidth,it.mode.physicalHeight) == FlipDiagnostics.Panel.INNER_CANDIDATE }
