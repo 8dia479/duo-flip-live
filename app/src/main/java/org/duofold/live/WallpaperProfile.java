@@ -2,6 +2,7 @@ package org.duofold.live;
 /** Wallpaper assets differ by Fold generation; this is not a compatibility guarantee. */
 public final class WallpaperProfile {
  public static String resolve(String model,String selected){
+  if(DeviceCompatibility.isFlip6(model))throw new IllegalArgumentException("Fold wallpaper profiles are not verified for Flip 6");
   if(model!=null && model.matches("SM-F966[A-Z0-9]+(?:/DS)?"))return "fold7";
   if(model!=null && model.matches("SM-F(?:971|976)[A-Z0-9]+(?:/DS)?"))return "fold8";
   if("fold7".equals(selected)||"fold8".equals(selected))return selected;

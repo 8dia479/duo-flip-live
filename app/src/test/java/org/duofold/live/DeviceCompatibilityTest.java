@@ -18,6 +18,14 @@ public class DeviceCompatibilityTest {
    DeviceCompatibility.requireEligible(model,37);
   }
  }
+ @Test public void flip6IsBlockedFromFoldSystemPath() {
+  for(String model:new String[]{"SM-F741N","SM-F741U","SM-F741B/DS"}) {
+   assertTrue(DeviceCompatibility.isFlip6(model));
+   assertFalse(DeviceCompatibility.isEligible(model,37));
+   try { DeviceCompatibility.requireEligible(model,37); fail("Flip must be blocked"); } catch(IllegalStateException expected) {}
+   try { WallpaperProfile.resolve(model,"fold8"); fail("Fold wallpaper must be blocked"); } catch(IllegalArgumentException expected) {}
+  }
+ }
  @Test public void preservesOsGate() {
   assertFalse(DeviceCompatibility.isEligible("SM-F966W",36));
   assertFalse(DeviceCompatibility.isEligible("unknown",38));

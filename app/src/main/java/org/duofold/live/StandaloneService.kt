@@ -115,6 +115,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     fun restart(){
         retainedPrimaryHost=false
         removeHost()
+        if(DeviceCompatibility.isFlip6(Build.MODEL)){note("Flip 6 system animation is not verified; use isolated preview");return}
         if(!RuntimeConsent.ready(this) || !settings().getBoolean("enabled",false)){note("Off — turn on Enable fold animation");return}
         runCatching { startForegroundService(Intent(this, FoldBackgroundService::class.java)) }.onFailure { note("Open Duo and tap Start background animation") }
         val display=displays.getDisplay(Display.DEFAULT_DISPLAY)?:return

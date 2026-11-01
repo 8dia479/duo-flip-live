@@ -92,6 +92,7 @@ public final class LiveAngles {
  public boolean isRunning(){return running;}
  public void start(){
   if(running)return;
+  if(DeviceCompatibility.isFlip6(android.os.Build.MODEL)){status="Flip 6 system animation is not verified; use isolated preview";return;}
   if(!RuntimeConsent.ready(context)){status="Review Privacy & controls before enabling animation";return;}
   try{
    if(!PrivilegedAccess.pingBinder()||PrivilegedAccess.checkSelfPermission()!=0)throw new IllegalStateException("Authorize Shizuku or existing root access, then reconnect");

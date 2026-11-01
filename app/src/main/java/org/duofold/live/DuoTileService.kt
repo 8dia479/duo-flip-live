@@ -23,6 +23,9 @@ class DuoTileService:TileService(),SharedPreferences.OnSharedPreferenceChangeLis
  override fun onClick(){super.onClick();if(isLocked)unlockAndRun{toggle()}else toggle()}
  private fun toggle(){
   val wasEnabled=prefs.getBoolean("enabled",false)
+  if(!wasEnabled && DeviceCompatibility.isFlip6(android.os.Build.MODEL)){
+   Toast.makeText(this,"Flip 6 system animation is not verified. Use the isolated preview.",Toast.LENGTH_LONG).show();return
+  }
   if(!wasEnabled && (!RuntimeConsent.ready(this)||FirstRun.required(this)||!Settings.canDrawOverlays(this)||StandaloneService.instance==null)){
    val intent=Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
    startActivityAndCollapse(PendingIntent.getActivity(this,35,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
