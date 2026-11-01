@@ -13,12 +13,13 @@ internal object FoldAwakeDefault {
  private val main=Handler(Looper.getMainLooper())
  @JvmField var status="Keep-awake off"
  private fun prefs(c:Context)=c.getSharedPreferences("standalone",0)
- @JvmStatic fun enabled(c:Context)=prefs(c).getBoolean("keep_awake_opt_in",false)&&prefs(c).getBoolean("auto_keep_cover_awake",false)
+ @JvmStatic fun enabled(c:Context)=!DeviceCompatibility.isFlip6(android.os.Build.MODEL)&&prefs(c).getBoolean("keep_awake_opt_in",false)&&prefs(c).getBoolean("auto_keep_cover_awake",false)
  @JvmStatic fun persist(c:Context){
   // Earlier builds forced this on. Ask once instead of treating that forced value as consent.
   if(!prefs(c).contains("keep_awake_opt_in"))prefs(c).edit().putBoolean("keep_awake_opt_in",false).putBoolean("auto_keep_cover_awake",false).commit()
  }
  @JvmStatic fun setEnabled(c:Context,value:Boolean){
+  if(value&&DeviceCompatibility.isFlip6(android.os.Build.MODEL)){status="Keep-awake unavailable on unverified Flip 6";return}
   if(value&&!RuntimeConsent.ready(c))return
   prefs(c).edit().putBoolean("keep_awake_opt_in",value).putBoolean("auto_keep_cover_awake",value).commit()
   reconnect();tick(c.applicationContext)

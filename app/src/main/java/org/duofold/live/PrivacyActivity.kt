@@ -35,7 +35,7 @@ class PrivacyActivity:ComponentActivity(){
     if(access)OutlinedButton(onClick={startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))}){Text("Android accessibility settings")}
     Text("Keep cover awake on close",style=MaterialTheme.typography.titleMedium)
     Text("Optional. Changes Samsung’s fold-lock setting and uses a bounded wake hold during closing. May increase battery use. Power-button locking is unchanged. Turning this off restores the setting recorded before Duo changed it, if it has not since been changed elsewhere. For upgrades from older builds, the original setting is unknown; check Samsung’s Lock when folded setting yourself.")
-    Switch(checked=awake,enabled=access&&screen,onCheckedChange={awake=it;FoldAwakeDefault.setEnabled(this@PrivacyActivity,it);if(it)org.duofold.live.wallpaperlayer.WallpaperRestore.resume(this@PrivacyActivity)})
+    Switch(checked=awake,enabled=access&&screen,onCheckedChange={FoldAwakeDefault.setEnabled(this@PrivacyActivity,it);awake=FoldAwakeDefault.enabled(this@PrivacyActivity);if(awake)org.duofold.live.wallpaperlayer.WallpaperRestore.resume(this@PrivacyActivity)})
     Text(awakeStatus,style=MaterialTheme.typography.bodySmall)
     Button(onClick={RuntimeControls.stopAll(this@PrivacyActivity);awake=false;revision++}){Text("Stop all Duo background work")}
     OutlinedButton(onClick={RuntimeConsent.withdraw(this@PrivacyActivity);awake=false;revision++}){Text("Withdraw both consents & stop")}

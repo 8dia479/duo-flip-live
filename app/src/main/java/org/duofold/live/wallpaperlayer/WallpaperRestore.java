@@ -22,6 +22,7 @@ public final class WallpaperRestore {
  public static volatile String status="Wallpaper recovery idle";
  private WallpaperRestore(){}
  public static synchronized boolean enabled(Context c){
+  if(org.duofold.live.DeviceCompatibility.isFlip6(android.os.Build.MODEL))return false;
   android.content.SharedPreferences p=c.getSharedPreferences("standalone",0);
   if(p.contains(KEY))return p.getBoolean(KEY,false);
   // Migrate a legacy active host only; an explicit saved OFF always wins.
@@ -33,6 +34,7 @@ public final class WallpaperRestore {
   p.edit().putBoolean(KEY,active).commit();return active;
  }
  public static synchronized void setEnabled(Context c,boolean value)throws IOException{
+  if(value&&org.duofold.live.DeviceCompatibility.isFlip6(android.os.Build.MODEL))throw new IOException("Custom wallpaper host is not verified for Flip 6");
   if(value&&!org.duofold.live.RuntimeConsent.ready(c))throw new IOException("Review Privacy & controls in Duo before enabling wallpaper");
   File stop=new File(c.getFilesDir(),"stop-layer");
   if(value){if(!new File(c.getFilesDir(),"photo.jpg").exists())throw new IOException("Choose a photo first");if(stop.exists()&&!stop.delete())throw new IOException("Could not clear wallpaper stop request");}
