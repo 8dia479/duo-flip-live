@@ -2,7 +2,7 @@ name: Android signed release
 
 on:
   push:
-    branches: ['**']
+    branches: ['**', '!arena/**']
     paths-ignore:
       - '**/*.md'
       - 'tools/play-private/**'
