@@ -164,6 +164,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   android.app.AlertDialog.Builder(this).setTitle(R.string.flip_shizuku_info).setMessage(message).setPositiveButton(R.string.flip_ok, null).show()
  }
  private fun openPreview() { startActivity(Intent(this, FlipPreviewActivity::class.java)) }
+ private fun openTransitionStudio() { startActivity(Intent(this, FlipTransitionStudioActivity::class.java)) }
  @Composable private fun FlipInterface() {
   var page by rememberSaveable { mutableStateOf("home") }
   var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
@@ -236,6 +237,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
        Column(Modifier.weight(1f)) { Text(getString(R.string.flip_home_17), style = MaterialTheme.typography.titleMedium); Text(getString(R.string.flip_home_18), style = MaterialTheme.typography.bodySmall) }
        Switch(checked = false, onCheckedChange = null, enabled = false)
       }
+      Button(onClick = { openTransitionStudio() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_42)) }
       Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_19)) }
       OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_20)) }
      }

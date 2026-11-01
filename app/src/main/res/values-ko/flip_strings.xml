@@ -158,4 +158,38 @@
  <string name="flip_vendor_inventory">기기 접힘 관련 센서 목록:\n%1$s</string>
  <string name="flip_vendor_no_sensors">접힘 관련 센서가 공개 센서 목록에 없습니다.</string>
  <string name="flip_hal_csv_note">CSV에는 출처가 표시된 원시 센서 측정값만 저장됩니다. 애니메이션용 추정값은 실제 측정값으로 기록하지 않습니다.</string>
+
+ <string name="flip_home_42">화면 전환 스튜디오</string>
+ <string name="flip_studio_title">화면 전환 스튜디오</string>
+ <string name="flip_studio_description">힌지 각도에 따라 커버 화면과 내부 화면 사이에서 앱 화면이 이동하는 모습을 테스트합니다.</string>
+ <string name="flip_studio_disclaimer">현재는 앱 안의 시각적 미리보기입니다. One UI의 실제 화면 전환, 앱 연속성 또는 디스플레이 전원은 제어하지 않습니다.</string>
+ <string name="flip_studio_angle">힌지 각도 · %1$s</string>
+ <string name="flip_studio_posture_cover">커버 화면 구간</string>
+ <string name="flip_studio_posture_transition">전환 구간</string>
+ <string name="flip_studio_posture_inner">내부 화면 구간</string>
+ <string name="flip_studio_posture_unknown">각도 측정값 없음</string>
+ <string name="flip_studio_live">실시간 센서</string>
+ <string name="flip_studio_manual">수동 테스트</string>
+ <string name="flip_studio_manual_help">슬라이더를 움직여 0°(접힘)부터 180°(펼침)까지 전환을 시험합니다.</string>
+ <string name="flip_studio_status">입력 출처 · %1$s</string>
+ <string name="flip_studio_waiting">센서 측정값 대기 중</string>
+ <string name="flip_studio_hal">삼성 센서 로그 · %1$s</string>
+ <string name="flip_studio_public">Android 힌지 센서</string>
+ <string name="flip_studio_no_sensor">사용 가능한 힌지 센서 없음</string>
+ <string name="flip_studio_style">전환 효과</string>
+ <string name="flip_studio_fade">교차 페이드</string>
+ <string name="flip_studio_slide">슬라이드</string>
+ <string name="flip_studio_zoom">확대·축소</string>
+ <string name="flip_studio_duration">전환 부드러움 · %1$d ms</string>
+ <string name="flip_studio_cover">커버 화면</string>
+ <string name="flip_studio_inner">내부 화면</string>
+ <string name="flip_studio_cover_meta">외부 디스플레이 미리보기</string>
+ <string name="flip_studio_inner_meta">메인 디스플레이 미리보기</string>
+ <string name="flip_studio_app_title">열려 있는 앱</string>
+ <string name="flip_studio_app_body">화면 크기에 맞춰 내용이 자연스럽게 이어집니다.</string>
+ <string name="flip_studio_preview_heading">앱 화면 이동 미리보기</string>
+ <string name="flip_studio_time">09:41</string>
+ <string name="flip_studio_no_live_reading">실시간 측정값이 없습니다. 수동 테스트를 선택해 움직여 보세요.</string>
+ <string name="flip_studio_visual_only">미리보기 전환 구간은 시각 효과용 기준값이며, 실제 One UI의 화면 전환 시점과 같다고 보장하지 않습니다.</string>
+
 </resources>

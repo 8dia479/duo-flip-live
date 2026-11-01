@@ -157,4 +157,38 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_vendor_inventory">Device fold-related sensors:\n%1$s</string>
  <string name="flip_vendor_no_sensors">No fold-related sensors appear in the public sensor list.</string>
  <string name="flip_hal_csv_note">The CSV contains source-tagged raw sensor samples; estimated animation angles are not recorded as measurements.</string>
+
+ <string name="flip_home_42">Open transition studio</string>
+ <string name="flip_studio_title">Screen transition studio</string>
+ <string name="flip_studio_description">Test how an app surface moves between the cover and inner display as the hinge angle changes.</string>
+ <string name="flip_studio_disclaimer">This is currently an in-app visual preview. It does not control One UI display handoff, app continuity, or display power.</string>
+ <string name="flip_studio_angle">Hinge angle · %1$s</string>
+ <string name="flip_studio_posture_cover">Cover-display range</string>
+ <string name="flip_studio_posture_transition">Transition range</string>
+ <string name="flip_studio_posture_inner">Inner-display range</string>
+ <string name="flip_studio_posture_unknown">No angle reading</string>
+ <string name="flip_studio_live">Live sensor</string>
+ <string name="flip_studio_manual">Manual test</string>
+ <string name="flip_studio_manual_help">Move the slider to test the transition from 0° (closed) to 180° (open).</string>
+ <string name="flip_studio_status">Input source · %1$s</string>
+ <string name="flip_studio_waiting">Waiting for a sensor reading</string>
+ <string name="flip_studio_hal">Samsung sensor logs · %1$s</string>
+ <string name="flip_studio_public">Android hinge sensor</string>
+ <string name="flip_studio_no_sensor">No usable hinge sensor</string>
+ <string name="flip_studio_style">Transition effect</string>
+ <string name="flip_studio_fade">Crossfade</string>
+ <string name="flip_studio_slide">Slide</string>
+ <string name="flip_studio_zoom">Scale</string>
+ <string name="flip_studio_duration">Transition smoothing · %1$d ms</string>
+ <string name="flip_studio_cover">Cover display</string>
+ <string name="flip_studio_inner">Inner display</string>
+ <string name="flip_studio_cover_meta">External display preview</string>
+ <string name="flip_studio_inner_meta">Main display preview</string>
+ <string name="flip_studio_app_title">Open app</string>
+ <string name="flip_studio_app_body">Content adapts smoothly to the display size.</string>
+ <string name="flip_studio_preview_heading">App-surface handoff preview</string>
+ <string name="flip_studio_time">09:41</string>
+ <string name="flip_studio_no_live_reading">No live reading. Choose Manual test to move the preview.</string>
+ <string name="flip_studio_visual_only">The preview transition range is a visual tuning value. It is not guaranteed to match One UI's real display handoff point.</string>
+
 </resources>
