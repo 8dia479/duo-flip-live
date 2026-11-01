@@ -39,6 +39,10 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  private var displayText by mutableStateOf("")
  private var displayRevision by mutableIntStateOf(0)
  private var deadband by mutableFloatStateOf(0f)
+ private val motion = FlipMotion()
+ private var direction by mutableStateOf(FlipMotion.Direction.UNKNOWN)
+ private var directionSensitivity by mutableFloatStateOf(1f)
+ private fun trackDirection(angle: Float) { direction = motion.update(angle, directionSensitivity) }
  private var recording by mutableStateOf(false)
  private var recordCount by mutableIntStateOf(0)
  private val records = ArrayDeque<String>()
@@ -74,6 +78,8 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   setContent {
    DuoTheme {
     var manual by remember { mutableFloatStateOf(120f) }
+    var foldEffect by remember { mutableStateOf(true) }
+    var unfoldEffect by remember { mutableStateOf(true) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
     var shizukuStatus by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
@@ -98,13 +104,19 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text("Hinge direction is an assumed horizontal axis, not a hardware detection result.")
       Text("${android.os.Build.MODEL} / Android ${android.os.Build.VERSION.RELEASE}; public hinge sensor: ${sensor?.name ?: "unavailable"} (${sensor?.vendor ?: "unknown vendor"})")
       Text("Angle: ${angle.roundToInt()}°")
-      Slider(value = manual, onValueChange = { manual = it }, valueRange = 0f..180f, enabled = !live)
+      Slider(value = manual, onValueChange = { manual = it; trackDirection(it) }, valueRange = 0f..180f, enabled = !live)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        Button(onClick = { selectLiveMode(false) }) { Text("Manual") }
        OutlinedButton(onClick = { selectLiveMode(true) }) { Text("Public sensor") }
       }
       Text(status)
       Text("Observed: ${samples.observation()} · accepted ${samples.accepted()} · rejected ${samples.rejected()}. This is not proof of continuous sensor support.")
+      Text("Direction: $direction · hysteresis ${String.format(java.util.Locale.US, "%.1f", directionSensitivity)}°")
+      Slider(value = directionSensitivity, onValueChange = { directionSensitivity = it }, valueRange = .1f..5f)
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+       FilterChip(selected = foldEffect, onClick = { foldEffect = !foldEffect }, label = { Text("Fold effect") })
+       FilterChip(selected = unfoldEffect, onClick = { unfoldEffect = !unfoldEffect }, label = { Text("Unfold effect") })
+      }
       Text("Preview noise deadband: ${String.format(java.util.Locale.US, "%.1f", deadband)}° (0 = raw)")
       Slider(value = deadband, onValueChange = { deadband = it }, valueRange = 0f..3f)
       Text("$shizukuStatus · read-only status, not used by preview")
@@ -128,7 +140,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       AndroidView(
        factory = { FrostSurface(it, preview = true, previewFlip = true) },
        modifier = Modifier.fillMaxWidth().height(360.dp),
-       update = { it.configure(frame, DuoShadeCurve.progress(angle, true), .8f, true, rotation, angle = angle) }
+       update = { it.configure(frame, if (FlipMotion.effectEnabled(direction, foldEffect, unfoldEffect)) DuoShadeCurve.progress(angle, true) else 0f, .8f, true, rotation, angle = angle) }
       )
       Text("Display snapshot (size candidates only; never used for routing):", style = MaterialTheme.typography.titleSmall)
       Text(displayText)
@@ -139,7 +151,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   }
  }
  private fun selectLiveMode(value: Boolean) {
-  if (!value) { stopSensor(); live = false; status = "Manual angle; no sensor registered"; return }
+  if (!value) { stopSensor(); motion.reset(); direction = FlipMotion.Direction.UNKNOWN; live = false; status = "Manual angle; no sensor registered"; return }
   if (sensor == null) { live = false; status = "TYPE_HINGE_ANGLE unavailable; manual preview remains active"; return }
   live = true
   if (started) startSensor()
@@ -147,7 +159,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  private fun startSensor() {
   if (listening) return
   val current = sensor ?: return
-  samples.reset(); observed = Float.NaN; sampleTime = 0
+  samples.reset(); motion.reset(); direction = FlipMotion.Direction.UNKNOWN; observed = Float.NaN; sampleTime = 0
   listening = sensors.registerListener(this, current, SensorManager.SENSOR_DELAY_GAME)
   if (!listening) { live = false; status = "Sensor registration failed; manual preview remains active" }
   else status = "Waiting for ${current.name}; manual value shown until first valid event"
@@ -158,7 +170,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  override fun onSensorChanged(event: SensorEvent) {
   if (!listening || event.sensor.type != Sensor.TYPE_HINGE_ANGLE || event.values.isEmpty()) return
   if (samples.add(event.values[0], event.timestamp, SystemClock.elapsedRealtimeNanos(), deadband)) {
-   observed = samples.displayed(); sampleTime = samples.timestamp()
+   observed = samples.displayed(); sampleTime = samples.timestamp(); trackDirection(observed)
    if (recording) {
     if (records.size == 512) records.removeFirst()
     records.addLast("${event.timestamp},${samples.raw()},${event.accuracy}"); recordCount = records.size
