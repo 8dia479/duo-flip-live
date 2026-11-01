@@ -76,6 +76,7 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
         prefs.getString("events", "").orEmpty()
             .lineSequence()
             .filter { it.isNotBlank() }
+            .toList()
             .takeLast(MAX_EVENTS)
             .forEach { eventLog.add(it) }
         configurationChanges = prefs.getInt("configuration_changes", 0)
