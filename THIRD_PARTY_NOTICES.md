@@ -14,3 +14,7 @@ This repository preserves the upstream notices in `app/src/main/assets/licenses/
 `reference/iphone-duo/main.js` preserves the MIT reference source used for the shader adaptation. No Samsung wallpaper APKs or videos, Apple device imagery, user photos, device logs, or signing keys are included. The application uses the Samsung engine already installed on the user's phone.
 
 The upstream Folio notices describe Folio as it existed upstream. This standalone app uses only the included subset and adds Shizuku capture, custom wallpaper, and onboarding code. The current iPhone Duo adaptation is code-derived, rather than inspiration alone.
+
+| Samsung hinge-sample interpolation design | https://github.com/OrangeHubX/duo-open-for-galaxy | MIT; marcoazeem (2026), adapted for the Duo Flip preview estimator |
+
+The adapted interpolation design is based on the two-source sample-timing approach in `OrangeHubX/duo-open-for-galaxy`. Its original MIT notice is preserved at `app/src/main/assets/licenses/ORANGEHUBX-MIT.txt`. Its 10°/11° sample-step values were reported for a Galaxy Z Fold 8 Ultra and are treated as provisional, not as verified Galaxy Z Flip 6 specifications.

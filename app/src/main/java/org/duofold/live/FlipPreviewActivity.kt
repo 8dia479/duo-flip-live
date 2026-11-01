@@ -66,6 +66,13 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  private var observed by mutableFloatStateOf(Float.NaN)
  private var sampleTime by mutableLongStateOf(0L)
  private var sampleIntervalMs by mutableFloatStateOf(Float.NaN)
+ private val samsungEstimator = FlipSamsungHingeEstimator()
+ private var samsungRaw by mutableFloatStateOf(Float.NaN)
+ private var samsungTimestampNanos by mutableLongStateOf(0L)
+ private var samsungReceivedAtNanos by mutableLongStateOf(0L)
+ private var samsungSourceName by mutableStateOf("")
+ private var samsungHalStatus by mutableStateOf("")
+ private var samsungSource: FlipSamsungAngleSource? = null
  private var status by mutableStateOf("")
 
  override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +85,25 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   deadband = previewPrefs.getFloat("deadband", 0f).let { if(it.isFinite()) it.coerceIn(0f, 3f) else 0f }
   displayManager = getSystemService(DisplayManager::class.java)
   refreshDisplays()
+  samsungHalStatus = getString(R.string.flip_hal_idle)
+  samsungSource = FlipSamsungAngleSource(
+   this,
+   onReading = { reading ->
+    samsungEstimator.add(reading.angle, reading.timestampNanos, reading.source)
+    samsungRaw = reading.angle
+    samsungTimestampNanos = reading.timestampNanos
+    samsungReceivedAtNanos = SystemClock.elapsedRealtimeNanos()
+    samsungSourceName = reading.sourceName
+    trackDirection(samsungEstimator.estimate(SystemClock.elapsedRealtimeNanos()))
+    samsungHalStatus = getString(R.string.flip_hal_last_reading, reading.sourceName)
+    if (recording) {
+     if (records.size == 512) records.removeFirst()
+     records.addLast("${reading.timestampNanos},${reading.angle},-1,${reading.sourceName}")
+     recordCount = records.size
+    }
+   },
+   onStatus = { samsungHalStatus = it }
+  )
   val bitmap = createSample()
   val frame = GlassFrame(bitmap, bitmap.width, bitmap.height, 0L)
   setContent {
@@ -98,7 +124,20 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       delay(1000)
      }
     }
-    val angle = if (live) observed else manual
+    var frameNow by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
+    LaunchedEffect(samsungReceivedAtNanos) {
+     if (samsungReceivedAtNanos > 0L) {
+      while (SystemClock.elapsedRealtimeNanos() - samsungReceivedAtNanos <= 3_000_000_000L) {
+       frameNow = SystemClock.elapsedRealtimeNanos()
+       delay(16)
+      }
+      frameNow = SystemClock.elapsedRealtimeNanos()
+     }
+    }
+    val samsungAge = if (samsungReceivedAtNanos > 0L) frameNow - samsungReceivedAtNanos else Long.MAX_VALUE
+    val samsungFresh = live && samsungAge in 0L..3_000_000_000L
+    val samsungEstimate = if (samsungFresh) samsungEstimator.estimate(frameNow) else Float.NaN
+    val angle = if (!live) manual else if (samsungEstimate.isFinite()) samsungEstimate else observed
     var playing by remember { mutableStateOf(true) }
     // The assumed preview axis is deliberately independent of physical display identity.
     val rotation = FlipPreviewPolicy.shaderRotation(display?.rotation ?: 0)
@@ -111,9 +150,16 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text(getString(R.string.flip_device_info, android.os.Build.MODEL, android.os.Build.VERSION.RELEASE, sensor?.name ?: getString(R.string.flip_sensor_none), sensor?.vendor ?: "—"))
       sensor?.let { Text(getString(R.string.flip_sensor_details, it.name, it.vendor, it.resolution.toString(), it.maximumRange.toString(), it.minDelay.toString()), style = MaterialTheme.typography.bodySmall) }
       Text(getString(R.string.flip_vendor_info, if (sensors.getSensorList(Sensor.TYPE_ALL).any { it.type == 65686 || it.name.equals("Folding Angle", true) }) getString(R.string.flip_vendor_found) else getString(R.string.flip_vendor_none)))
+      val foldSensors = remember { sensors.getSensorList(Sensor.TYPE_ALL).filter {
+       val label = (it.name + " " + it.stringType).lowercase()
+       label.contains("fold") || label.contains("hinge") || label.contains("lid")
+      }.joinToString("\n") { "${it.name} · type ${it.type} · res ${it.resolution}° · max ${it.maximumRange}°" } }
+      Text(getString(R.string.flip_vendor_inventory, foldSensors.ifBlank { getString(R.string.flip_vendor_no_sensors) }), style = MaterialTheme.typography.bodySmall)
       Text(getString(R.string.flip_vendor_permission, if (checkSelfPermission("com.samsung.permission.SSENSOR") == android.content.pm.PackageManager.PERMISSION_GRANTED) getString(R.string.flip_perm_yes) else getString(R.string.flip_perm_no)))
       Text(if (live) getString(R.string.flip_live_source) else getString(R.string.flip_virtual_source), style = MaterialTheme.typography.titleMedium)
-      Text(if (live && samples.raw().isFinite()) getString(R.string.flip_angle_value, samples.raw()) else if (!live) getString(R.string.flip_angle_value, manual) else getString(R.string.flip_waiting_angle), style = MaterialTheme.typography.headlineLarge)
+      Text(if (angle.isFinite()) getString(R.string.flip_angle_value, angle) else if (!live) getString(R.string.flip_angle_value, manual) else getString(R.string.flip_waiting_angle), style = MaterialTheme.typography.headlineLarge)
+      if (live && samsungRaw.isFinite()) Text(getString(R.string.flip_hal_raw_and_estimate, samsungSourceName, samsungRaw, angle), style = MaterialTheme.typography.bodySmall)
+      Text(samsungHalStatus, style = MaterialTheme.typography.bodySmall)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        Button(onClick = { playing = true }, enabled = !playing) { Text(getString(R.string.flip_start_preview)) }
        OutlinedButton(onClick = { playing = false }, enabled = playing) { Text(getString(R.string.flip_stop_preview)) }
@@ -125,6 +171,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       }
       Text(status)
       Text(getString(R.string.flip_observation, observationLabel(), samples.accepted(), samples.rejected()))
+    Text(getString(R.string.flip_hal_csv_note))
       Text(getString(R.string.flip_direction, directionLabel(), directionSensitivity))
       Slider(value = directionSensitivity, onValueChange = { directionSensitivity = it; previewPrefs.edit().putFloat("sensitivity", it).apply() }, valueRange = .1f..5f)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -140,7 +187,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
        OutlinedButton(onClick = { records.clear(); recordCount = 0; displayEvents.clear(); displayEventCount = 0 }) { Text(getString(R.string.flip_prev_13)) }
       }
       OutlinedButton(onClick = {
-       val csv = "elapsed_nanos,angle_degrees,accuracy\n" + records.joinToString("\n")
+       val csv = "elapsed_nanos,angle_degrees,accuracy,source\n" + records.joinToString("\n")
        (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Flip sensor diagnostic", csv))
        android.widget.Toast.makeText(this@FlipPreviewActivity, getString(R.string.flip_copied_sensor, recordCount), android.widget.Toast.LENGTH_SHORT).show()
       }, enabled = recordCount > 0) { Text(getString(R.string.flip_copy_sensor, recordCount)) }
@@ -167,31 +214,44 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   }
  }
  private fun selectLiveMode(value: Boolean) {
-  if (!value) { stopSensor(); motion.reset(); direction = FlipMotion.Direction.UNKNOWN; live = false; status = getString(R.string.flip_prev_18); return }
-  if (sensor == null) { live = false; status = getString(R.string.flip_prev_19); return }
+  if (!value) {
+   stopSensor()
+   samsungSource?.stop()
+   samsungEstimator.reset()
+   samsungRaw = Float.NaN; samsungTimestampNanos = 0L; samsungReceivedAtNanos = 0L; samsungSourceName = ""
+   motion.reset(); direction = FlipMotion.Direction.UNKNOWN
+   live = false; status = getString(R.string.flip_prev_18)
+   return
+  }
   live = true
-  if (started) startSensor()
+  samples.reset(); observed = Float.NaN; sampleTime = 0L
+  samsungEstimator.reset(); samsungRaw = Float.NaN; samsungTimestampNanos = 0L; samsungReceivedAtNanos = 0L; samsungSourceName = ""
+  if (started && sensor != null) startSensor()
+  else if (sensor == null) status = getString(R.string.flip_prev_19)
+  samsungSource?.start()
  }
  private fun startSensor() {
   if (listening) return
-  val current = sensor ?: return
+  val current = sensor ?: run { status = getString(R.string.flip_prev_19); return }
   samples.reset(); motion.reset(); direction = FlipMotion.Direction.UNKNOWN; observed = Float.NaN; sampleTime = 0
   listening = sensors.registerListener(this, current, SensorManager.SENSOR_DELAY_GAME)
-  if (!listening) { live = false; status = getString(R.string.flip_prev_20) }
+  if (!listening) status = getString(R.string.flip_prev_20)
   else status = getString(R.string.flip_wait_sensor, current.name)
  }
  private fun stopSensor() { if (listening) sensors.unregisterListener(this); listening = false; samples.reset(); observed = Float.NaN; sampleTime = 0; sampleIntervalMs = Float.NaN }
- override fun onStart() { super.onStart(); started = true; displayManager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper())); refreshDisplays(); if (live) startSensor() }
- override fun onStop() { started = false; displayManager.unregisterDisplayListener(displayListener); recording = false; stopSensor(); super.onStop() }
+ override fun onStart() { super.onStart(); started = true; displayManager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper())); refreshDisplays(); if (live) { startSensor(); samsungSource?.start() } }
+ override fun onStop() { started = false; displayManager.unregisterDisplayListener(displayListener); recording = false; stopSensor(); samsungSource?.stop(); samsungEstimator.reset(); samsungRaw = Float.NaN; samsungTimestampNanos = 0L; samsungReceivedAtNanos = 0L; samsungSourceName = ""; super.onStop() }
  override fun onSensorChanged(event: SensorEvent) {
   if (!listening || event.sensor.type != Sensor.TYPE_HINGE_ANGLE || event.values.isEmpty()) return
+  val samsungAge = if (samsungReceivedAtNanos > 0L) SystemClock.elapsedRealtimeNanos() - samsungReceivedAtNanos else Long.MAX_VALUE
+  if (samsungAge in 0L..3_000_000_000L) return
   if (samples.add(event.values[0], event.timestamp, SystemClock.elapsedRealtimeNanos(), deadband)) {
    val previous = sampleTime
    observed = samples.displayed(); sampleTime = samples.timestamp(); trackDirection(observed)
    sampleIntervalMs = if (previous > 0) (sampleTime - previous) / 1_000_000f else Float.NaN
    if (recording) {
     if (records.size == 512) records.removeFirst()
-    records.addLast("${event.timestamp},${samples.raw()},${event.accuracy}"); recordCount = records.size
+    records.addLast("${event.timestamp},${samples.raw()},${event.accuracy},Android TYPE_HINGE_ANGLE"); recordCount = records.size
    }
    status = getString(R.string.flip_sensor_reading, event.sensor.name, samples.raw(), observed, event.accuracy)
   } else status = getString(R.string.flip_prev_21)

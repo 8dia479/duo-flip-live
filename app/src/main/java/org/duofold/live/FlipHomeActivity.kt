@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-/** Flip-only entry point. It observes public APIs and never starts a privileged helper. */
+/** Flip-only entry point. Samsung HAL logs are read-only and opt-in through Shizuku. */
 class FlipHomeActivity : ComponentActivity(), SensorEventListener {
  private lateinit var sensors: SensorManager
  private lateinit var displays: DisplayManager
@@ -52,6 +52,13 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
  private var panelInfo by mutableStateOf("")
  private var innerInfo by mutableStateOf("")
  private var coverInfo by mutableStateOf("")
+ private val samsungEstimator = FlipSamsungHingeEstimator()
+ private var samsungRawAngle by mutableFloatStateOf(Float.NaN)
+ private var samsungTimestampNs by mutableLongStateOf(0L)
+ private var samsungReceivedAtNs by mutableLongStateOf(0L)
+ private var samsungSourceName by mutableStateOf("")
+ private var samsungStatus by mutableStateOf("")
+ private var samsungSource: FlipSamsungAngleSource? = null
  private val displayListener = object : DisplayManager.DisplayListener {
   override fun onDisplayAdded(id: Int) = refreshDisplays()
   override fun onDisplayRemoved(id: Int) = refreshDisplays()
@@ -64,6 +71,22 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   sensors = getSystemService(SensorManager::class.java)
   displays = getSystemService(DisplayManager::class.java)
   sensor = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
+  samsungStatus = getString(R.string.flip_hal_idle)
+  samsungSource = FlipSamsungAngleSource(
+   this,
+   onReading = { reading ->
+    samsungEstimator.add(reading.angle, reading.timestampNanos, reading.source)
+    samsungRawAngle = reading.angle
+    samsungTimestampNs = reading.timestampNanos
+    samsungReceivedAtNs = SystemClock.elapsedRealtimeNanos()
+    samsungSourceName = reading.sourceName
+    angle = reading.angle
+    badSample = false
+    samsungStatus = getString(R.string.flip_hal_last_reading, reading.sourceName)
+    refreshSensorStatus()
+   },
+   onStatus = { samsungStatus = it }
+  )
   refreshDisplays()
   rikka.shizuku.Shizuku.addRequestPermissionResultListener(permissionListener)
   setContent { DuoTheme { FlipInterface() } }
@@ -75,16 +98,21 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   readings.reset(); angle = Float.NaN; badSample = false
   registered = sensor?.let { sensors.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) } ?: false
   refreshSensorStatus()
+  samsungSource?.start()
  }
- override fun onResume() { super.onResume(); resumeVersion++ }
+ override fun onResume() { super.onResume(); resumeVersion++; samsungSource?.start() }
  override fun onStop() {
   sensors.unregisterListener(this); registered = false
+  samsungSource?.stop(); samsungTimestampNs = 0L; samsungReceivedAtNs = 0L
+  samsungEstimator.reset(); samsungRawAngle = Float.NaN; samsungSourceName = ""
   displays.unregisterDisplayListener(displayListener)
   super.onStop()
  }
  override fun onDestroy() { rikka.shizuku.Shizuku.removeRequestPermissionResultListener(permissionListener); super.onDestroy() }
  override fun onSensorChanged(event: SensorEvent) {
   if (!registered || event.sensor.type != Sensor.TYPE_HINGE_ANGLE || event.values.isEmpty()) return
+  val samsungAge = if (samsungTimestampNs > 0L) SystemClock.elapsedRealtimeNanos() - samsungTimestampNs else Long.MAX_VALUE
+  if (samsungAge in 0L..1_500_000_000L) return
   if (readings.add(event.values[0], event.timestamp, SystemClock.elapsedRealtimeNanos(), 0f)) {
    angle = readings.raw(); badSample = false
   } else badSample = true
@@ -109,16 +137,19 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
    getString(R.string.flip_home_display, d.displayId, d.mode.physicalWidth, d.mode.physicalHeight, m.densityDpi, d.rotation, d.state)
   }.ifEmpty { getString(R.string.flip_prev_25) }
  }
- private fun sensorLabel() = when (sensorStatus) {
+ private fun sensorLabel(samsungFresh: Boolean): String {
+  if (samsungFresh) return getString(R.string.flip_hal_sensor_active)
+  return when (sensorStatus) {
   FlipHomePolicy.SensorStatus.UNAVAILABLE -> getString(R.string.flip_home_02)
   FlipHomePolicy.SensorStatus.ERROR -> getString(R.string.flip_home_03)
   FlipHomePolicy.SensorStatus.LIMITED -> getString(R.string.flip_home_04)
   FlipHomePolicy.SensorStatus.VARIED_UNVERIFIED -> getString(R.string.flip_home_05)
   else -> getString(R.string.flip_home_06)
+  }
  }
- private fun posture(): String = if (!angle.isFinite() || sensorStatus == FlipHomePolicy.SensorStatus.ERROR) getString(R.string.flip_home_00) else when {
-  angle <= 5 -> getString(R.string.flip_home_07)
-  angle >= 175 -> getString(R.string.flip_home_08)
+ private fun posture(value: Float = angle): String = if (!value.isFinite()) getString(R.string.flip_home_00) else when {
+  value <= 5 -> getString(R.string.flip_home_07)
+  value >= 175 -> getString(R.string.flip_home_08)
   else -> getString(R.string.flip_home_09)
  }
  private fun showShizukuDialog() {
@@ -137,6 +168,20 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   var page by rememberSaveable { mutableStateOf("home") }
   var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
   val prefs = remember { getSharedPreferences("flip_preview", 0) }
+  var frameNow by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
+  LaunchedEffect(samsungReceivedAtNs) {
+   if (samsungReceivedAtNs > 0L) {
+    while (SystemClock.elapsedRealtimeNanos() - samsungReceivedAtNs <= 3_000_000_000L) {
+     frameNow = SystemClock.elapsedRealtimeNanos()
+     delay(16)
+    }
+    frameNow = SystemClock.elapsedRealtimeNanos()
+   }
+  }
+  val samsungAge = if (samsungReceivedAtNs > 0L) frameNow - samsungReceivedAtNs else Long.MAX_VALUE
+  val samsungFresh = samsungAge in 0L..3_000_000_000L
+  val samsungEstimate = if (samsungFresh) samsungEstimator.estimate(frameNow) else Float.NaN
+  val displayAngle = if (samsungEstimate.isFinite()) samsungEstimate else angle
   var sensitivity by remember { mutableFloatStateOf(prefs.getFloat("sensitivity", 1f).let { if (it.isFinite()) it.coerceIn(.1f, 5f) else 1f }) }
   var deadband by remember { mutableFloatStateOf(prefs.getFloat("deadband", 0f).let { if (it.isFinite()) it.coerceIn(0f, 3f) else 0f }) }
   var fold by remember { mutableStateOf(prefs.getBoolean("fold", true)) }
@@ -172,9 +217,11 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
        PhoneIllustration()
        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(getString(R.string.flip_home_14), style = MaterialTheme.typography.titleMedium)
-        Text(if (angle.isFinite() && sensorStatus != FlipHomePolicy.SensorStatus.ERROR) "${"%.1f".format(angle)}°" else "—", style = MaterialTheme.typography.headlineLarge)
-        Text(posture(), color = MaterialTheme.colorScheme.secondary)
-        Text(sensorLabel(), style = MaterialTheme.typography.bodySmall)
+        Text(if (displayAngle.isFinite()) "${"%.1f".format(displayAngle)}°" else "—", style = MaterialTheme.typography.headlineLarge)
+        Text(posture(displayAngle), color = MaterialTheme.colorScheme.secondary)
+        Text(sensorLabel(samsungFresh), style = MaterialTheme.typography.bodySmall)
+        Text(samsungStatus, style = MaterialTheme.typography.bodySmall)
+        if (samsungFresh) Text(getString(R.string.flip_hal_raw_and_estimate, samsungSourceName, samsungRawAngle, displayAngle), style = MaterialTheme.typography.bodySmall)
        }
       }
      }
@@ -217,7 +264,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
     } else {
      FlipCard {
       Text(getString(R.string.flip_home_32), style = MaterialTheme.typography.titleLarge)
-      Text(sensorLabel()); Text(getString(R.string.flip_angle_label, if (angle.isFinite()) getString(R.string.flip_angle_value, angle) else getString(R.string.flip_no_reading)))
+      Text(sensorLabel(samsungFresh)); Text(getString(R.string.flip_angle_label, if (angle.isFinite()) getString(R.string.flip_angle_value, angle) else getString(R.string.flip_no_reading)))
       Text("Shizuku · $shizuku"); Text(panelInfo)
       Text(getString(R.string.flip_home_33), style = MaterialTheme.typography.bodySmall)
       Button(onClick = { openPreview() }) { Text(getString(R.string.flip_home_34)) }

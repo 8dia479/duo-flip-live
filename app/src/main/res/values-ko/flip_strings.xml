@@ -8,7 +8,7 @@
  <string name="flip_stop_preview">미리보기 중지</string>
  <string name="flip_manual_status">가상 각도 · 센서 미사용</string>
  <string name="flip_prev_00">Flip 실험용 미리보기</string>
- <string name="flip_prev_01">앱 안의 합성 이미지만 사용합니다. 배경화면 변경, 화면 캡처, 시스템 화면 전환은 수행하지 않습니다. Flip 6 동작은 실기기 미검증입니다.</string>
+ <string name="flip_prev_01">앱 안의 합성 이미지로 미리보기만 합니다. 배경화면 변경, 화면 캡처, 시스템 화면 전환은 하지 않습니다. Shizuku 권한을 허용하면 삼성 힌지 센서 로그만 읽습니다. 실제 시스템 전환은 미검증입니다.</string>
  <string name="flip_prev_02">힌지 방향은 가정된 가로축이며 실제 기기에서 확인된 방향이 아닙니다.</string>
  <string name="flip_prev_03">가상 각도</string>
  <string name="flip_prev_04">실시간 센서</string>
@@ -139,4 +139,23 @@
  <string name="flip_setup_required">Duo Flip 설정을 완료해야 애니메이션을 켤 수 있습니다.</string>
  <string name="flip_toggle_failed">애니메이션을 변경할 수 없습니다. Duo Flip에서 다시 시도하세요.</string>
  <string name="service_description">힌지 움직임에 따라 화면 위에 효과를 표시합니다. 화면 텍스트나 터치를 읽지 않습니다.</string>
+ <string name="flip_hal_idle">삼성 정밀 힌지 데이터: 대기 중</string>
+ <string name="flip_hal_shizuku_off">Shizuku가 실행 중이 아닙니다.</string>
+ <string name="flip_hal_permission_needed">Shizuku에서 Duo Flip 권한을 허용해야 삼성 센서 로그를 읽을 수 있습니다.</string>
+ <string name="flip_hal_connecting">Shizuku 센서 읽기 도우미에 연결 중</string>
+ <string name="flip_hal_bind_timeout">Shizuku 도우미 연결 시간이 초과되었습니다.</string>
+ <string name="flip_hal_bind_failed">Shizuku 센서 도우미에 연결하지 못했습니다.</string>
+ <string name="flip_hal_waiting">삼성 센서 HAL 로그를 기다리는 중</string>
+ <string name="flip_hal_receiving">삼성 힌지 센서 로그 수신 중</string>
+ <string name="flip_hal_last_reading">삼성 원시 센서 수신: %1$s</string>
+ <string name="flip_hal_start_failed">삼성 센서 로그 읽기를 시작하지 못했습니다.</string>
+ <string name="flip_hal_disconnected">Shizuku 센서 연결이 끊겼습니다.</string>
+ <string name="flip_hal_read_failed">삼성 센서 로그 상태를 읽지 못했습니다.</string>
+ <string name="flip_hal_logcat_error">센서 로그 읽기 오류입니다. 권한 또는 로그 접근을 확인하세요.</string>
+ <string name="flip_hal_logcat_ended">센서 로그 스트림이 종료되었습니다.</string>
+ <string name="flip_hal_raw_and_estimate">원시 측정값(%1$s): %2$.1f° · 화면 효과용 추정값: %3$.1f°</string>
+ <string name="flip_hal_sensor_active">삼성 정밀 힌지 센서 로그 사용 중</string>
+ <string name="flip_vendor_inventory">기기 접힘 관련 센서 목록:\n%1$s</string>
+ <string name="flip_vendor_no_sensors">접힘 관련 센서가 공개 센서 목록에 없습니다.</string>
+ <string name="flip_hal_csv_note">CSV에는 출처가 표시된 원시 센서 측정값만 저장됩니다. 애니메이션용 추정값은 실제 측정값으로 기록하지 않습니다.</string>
 </resources>

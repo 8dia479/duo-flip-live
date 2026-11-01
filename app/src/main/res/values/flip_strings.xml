@@ -8,7 +8,7 @@
  <string name="flip_stop_preview">Stop preview</string>
  <string name="flip_manual_status">Virtual angle; sensor not registered</string>
  <string name="flip_prev_00">Flip experimental preview</string>
- <string name="flip_prev_01">In-app synthetic image only. No wallpaper changes, screen capture, Shizuku, overlay, or system display handoff. Flip 6 behavior is unverified.</string>
+ <string name="flip_prev_01">In-app synthetic image only. No wallpaper changes, screen capture, overlay, or system display handoff. With permission, Shizuku is used only to read Samsung hinge-sensor log lines. Flip 6 system transitions remain unverified.</string>
  <string name="flip_prev_02">Hinge direction is an assumed horizontal axis, not a hardware detection result.</string>
  <string name="flip_prev_03">Manual</string>
  <string name="flip_prev_04">Public sensor</string>
@@ -138,4 +138,23 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_tile_blocked">Flip 6 system animation is not verified. Use the isolated preview.</string>
  <string name="flip_setup_required">Complete Duo Flip setup to enable animation</string>
  <string name="flip_toggle_failed">Could not toggle animation. Open Duo Flip to try again.</string>
+ <string name="flip_hal_idle">Samsung precise hinge data: idle</string>
+ <string name="flip_hal_shizuku_off">Shizuku is not running.</string>
+ <string name="flip_hal_permission_needed">Authorise Duo Flip in Shizuku to read Samsung sensor logs.</string>
+ <string name="flip_hal_connecting">Connecting to the Shizuku sensor reader</string>
+ <string name="flip_hal_bind_timeout">The Shizuku helper connection timed out.</string>
+ <string name="flip_hal_bind_failed">Could not connect to the Shizuku sensor helper.</string>
+ <string name="flip_hal_waiting">Waiting for Samsung sensor HAL logs</string>
+ <string name="flip_hal_receiving">Receiving Samsung hinge sensor logs</string>
+ <string name="flip_hal_last_reading">Last Samsung sensor source: %1$s</string>
+ <string name="flip_hal_start_failed">Could not start reading Samsung sensor logs.</string>
+ <string name="flip_hal_disconnected">The Shizuku sensor connection was lost.</string>
+ <string name="flip_hal_read_failed">Could not read the Samsung sensor log status.</string>
+ <string name="flip_hal_logcat_error">Sensor log read error. Check permission and log access.</string>
+ <string name="flip_hal_logcat_ended">The sensor log stream ended.</string>
+ <string name="flip_hal_raw_and_estimate">Raw reading (%1$s): %2$.1f° · animation estimate: %3$.1f°</string>
+ <string name="flip_hal_sensor_active">Using Samsung hinge sensor logs</string>
+ <string name="flip_vendor_inventory">Device fold-related sensors:\n%1$s</string>
+ <string name="flip_vendor_no_sensors">No fold-related sensors appear in the public sensor list.</string>
+ <string name="flip_hal_csv_note">The CSV contains source-tagged raw sensor samples; estimated animation angles are not recorded as measurements.</string>
 </resources>
