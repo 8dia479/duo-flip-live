@@ -21,7 +21,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          ./gradlew --no-daemon testGithubDebugUnitTest assembleGithubDebug > build-output.txt 2>&1
+          ./gradlew --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs='-Xmx1536m -Dfile.encoding=UTF-8' testGithubDebugUnitTest > build-output.txt 2>&1
+          code=$?
+          if [ "$code" -eq 0 ]; then
+            ./gradlew --no-daemon --max-workers=1 --console=plain -Dorg.gradle.jvmargs='-Xmx1536m -Dfile.encoding=UTF-8' assembleGithubDebug >> build-output.txt 2>&1
+          fi
           code=$?
           cat build-output.txt
           if [ "$code" -ne 0 ]; then
@@ -34,8 +38,21 @@ jobs:
           PYCODE
           fi
           exit "$code"
+      - name: Verify and package debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deliverables
+          cp app/build/outputs/apk/github/debug/app-github-debug.apk deliverables/duo-flip-preview-debug.apk
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$tools/apksigner" verify --verbose --print-certs deliverables/duo-flip-preview-debug.apk | tee deliverables/signature.txt
+          "$tools/aapt" dump badging deliverables/duo-flip-preview-debug.apk > deliverables/package-info.txt
+          unzip -l deliverables/duo-flip-preview-debug.apk > deliverables/apk-contents.txt
+          grep -q 'classes.dex' deliverables/apk-contents.txt
+          grep -q 'resources.arsc' deliverables/apk-contents.txt
+          (cd deliverables && sha256sum duo-flip-preview-debug.apk > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: flip-preview-debug-apk
-          path: app/build/outputs/apk/github/debug/*.apk
+          path: deliverables/
           if-no-files-found: error
