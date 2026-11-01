@@ -17,7 +17,23 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v4
       - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
-      - run: ./gradlew --no-daemon testGithubDebugUnitTest assembleGithubDebug
+      - name: Build and test
+        shell: bash
+        run: |
+          set +e
+          ./gradlew --no-daemon testGithubDebugUnitTest assembleGithubDebug > build-output.txt 2>&1
+          code=$?
+          cat build-output.txt
+          if [ "$code" -ne 0 ]; then
+            python3 - <<'PYCODE'
+          from pathlib import Path
+          lines = Path('build-output.txt').read_text(errors='replace').splitlines()
+          relevant = [line for line in lines if any(s in line for s in (' e: ', 'e: ', 'error:', 'What went wrong', 'Could not', 'failed', 'FAILURE:', 'Execution failed', 'Exception', 'not found'))]
+          for line in relevant[-20:]:
+              print('::error::' + line.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PYCODE
+          fi
+          exit "$code"
       - uses: actions/upload-artifact@v4
         with:
           name: flip-preview-debug-apk
