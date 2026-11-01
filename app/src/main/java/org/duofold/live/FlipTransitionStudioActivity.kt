@@ -8,8 +8,6 @@ import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -132,10 +130,6 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
             mutableStateOf(prefs.getString("transition_style", "fade")
                 ?.takeIf { it == "fade" || it == "slide" || it == "zoom" } ?: "fade")
         }
-        var durationMs by remember {
-            mutableIntStateOf(FlipTransitionPolicy.sanitizeDurationMs(prefs.getInt("transition_duration_ms", 280)))
-        }
-
         LaunchedEffect(Unit) {
             while (true) {
                 refreshDisplayedAngle()
@@ -201,18 +195,12 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
                                 style = "zoom"; prefs.edit().putString("transition_style", style).apply()
                             }, label = { Text(getString(R.string.flip_studio_zoom)) })
                         }
-                        Text(getString(R.string.flip_studio_duration, durationMs))
-                        Slider(
-                            value = durationMs.toFloat(),
-                            onValueChange = {
-                                durationMs = FlipTransitionPolicy.sanitizeDurationMs(it.toInt())
-                                prefs.edit().putInt("transition_duration_ms", durationMs).apply()
-                            },
-                            valueRange = 120f..700f
-                        )
+                        Text("수동 슬라이더와 실시간 추정 각도를 프레임마다 바로 반영합니다.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                TransitionPreview(previewAngle, style, durationMs)
+                TransitionPreview(previewAngle, style)
                 Text(getString(R.string.flip_studio_visual_only), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(getString(R.string.flip_studio_disclaimer), style = MaterialTheme.typography.bodySmall,
@@ -230,20 +218,22 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
 }
 
 @Composable
-private fun TransitionPreview(angle: Float, style: String, durationMs: Int) {
+private fun TransitionPreview(angle: Float, style: String) {
     val valid = FlipTransitionPolicy.isValidAngle(angle)
+    // The HAL estimator already interpolates between samples at frame cadence.
+    // Manual input is also a direct position control, so never tween these values.
     val progress = if (valid) FlipTransitionPolicy.handoffProgress(angle) else 0.5f
-    val duration = FlipTransitionPolicy.sanitizeDurationMs(durationMs)
     val coverTarget = 1f - progress
     val innerTarget = progress
-    val coverAlpha by animateFloatAsState(0.18f + coverTarget * 0.82f,
-        animationSpec = tween(durationMillis = duration), label = "cover-alpha")
-    val innerAlpha by animateFloatAsState(0.18f + innerTarget * 0.82f,
-        animationSpec = tween(durationMillis = duration), label = "inner-alpha")
+    val coverAlpha = 0.04f + coverTarget * 0.96f
+    val innerAlpha = 0.04f + innerTarget * 0.96f
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.flip_studio_preview_heading), style = MaterialTheme.typography.titleMedium)
+            Text("전환 진행률 ${(progress * 100f).toInt()}%",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary)
             Row(Modifier.fillMaxWidth().height(190.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.Bottom) {
                 ScreenMock(
@@ -253,7 +243,7 @@ private fun TransitionPreview(angle: Float, style: String, durationMs: Int) {
                     appBody = stringResource(R.string.flip_studio_app_body),
                     time = stringResource(R.string.flip_studio_time),
                     isCover = true,
-                    alpha = coverAlpha, visibility = coverTarget, style = style, durationMs = duration,
+                    alpha = coverAlpha, visibility = coverTarget, style = style,
                     modifier = Modifier.weight(1f).height(148.dp)
                 )
                 ScreenMock(
@@ -263,7 +253,7 @@ private fun TransitionPreview(angle: Float, style: String, durationMs: Int) {
                     appBody = stringResource(R.string.flip_studio_app_body),
                     time = stringResource(R.string.flip_studio_time),
                     isCover = false,
-                    alpha = innerAlpha, visibility = innerTarget, style = style, durationMs = duration,
+                    alpha = innerAlpha, visibility = innerTarget, style = style,
                     modifier = Modifier.weight(1f).height(184.dp)
                 )
             }
@@ -286,16 +276,13 @@ private fun ScreenMock(
     alpha: Float,
     visibility: Float,
     style: String,
-    durationMs: Int,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val offsetTarget = if (style == "slide") {
-        with(density) { ((1f - visibility) * if (isCover) -18f else 18f).dp.toPx() }
+    val offset = if (style == "slide") {
+        with(density) { ((1f - visibility) * if (isCover) -48f else 48f).dp.toPx() }
     } else 0f
-    val offset by animateFloatAsState(offsetTarget, tween(durationMillis = durationMs), label = "$title-offset")
-    val scaleTarget = if (style == "zoom") 0.90f + visibility * 0.10f else 1f
-    val scale by animateFloatAsState(scaleTarget, tween(durationMillis = durationMs), label = "$title-scale")
+    val scale = if (style == "zoom") 0.76f + visibility * 0.24f else 1f
     Surface(
         modifier = modifier.graphicsLayer {
             this.alpha = alpha
