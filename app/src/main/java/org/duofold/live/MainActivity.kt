@@ -175,6 +175,7 @@ class MainActivity:ComponentActivity(){
         Text("Allow up to 35 seconds. If the helpers still time out, stop and start Shizuku, then return here.",style=MaterialTheme.typography.bodySmall)
        }
       }
+      OutlinedButton(onClick={startActivity(Intent(this@MainActivity,FlipPreviewActivity::class.java))}){Text("Experimental Flip preview (no system changes)")}
       DeviceProfileChoice{startActivity(Intent(this@MainActivity,SetupActivity::class.java).putExtra("repair",true))}
       if(supportBanner){
        SettingsCard("Enjoying Duo Fold Live?","Your support helps fund more updates. Always optional."){

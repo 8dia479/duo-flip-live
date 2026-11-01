@@ -130,6 +130,7 @@ class SetupActivity : ComponentActivity() {
         Text("This replaces your current home wallpapers and remains applied if you disable Duo. You can change them later in Samsung wallpaper settings. Your lock-screen wallpaper is not changed by this setup.")
         Text("Next, choose whether to cover it with your own photo. Then we’ll connect Shizuku (or your existing root access) and apply the required wallpaper automatically. No root is needed.")
         Text("Regional SM-F971, SM-F976, and SM-F966 model numbers are recognized. Other models may also proceed with a warning. Android 17 is still required; Samsung wallpaper components and APIs are checked separately. Only SM-F971U has been tested.",style=MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick={startActivity(Intent(this@SetupActivity,FlipPreviewActivity::class.java))}){Text("Experimental Flip preview (no system changes)")}
         Button(onClick={go(1)}){Text("Continue")}
        }
        1->{
