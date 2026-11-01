@@ -67,8 +67,8 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text("Angle: ${angle.roundToInt()}°")
       Slider(value = manual, onValueChange = { manual = it }, valueRange = 0f..180f, enabled = !live)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-       Button(onClick = { setLive(false) }) { Text("Manual") }
-       OutlinedButton(onClick = { setLive(true) }) { Text("Public sensor") }
+       Button(onClick = { selectLiveMode(false) }) { Text("Manual") }
+       OutlinedButton(onClick = { selectLiveMode(true) }) { Text("Public sensor") }
       }
       Text(status)
       if (sampleTime > 0) Text("Last event: ${((now - sampleTime).coerceAtLeast(0L) / 1_000_000_000L)} s ago. On-change sensors can be silent while stationary; the last value is held, not extrapolated.")
@@ -86,7 +86,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
    }
   }
  }
- private fun setLive(value: Boolean) {
+ private fun selectLiveMode(value: Boolean) {
   if (!value) { stopSensor(); live = false; status = "Manual angle; no sensor registered"; return }
   if (sensor == null) { live = false; status = "TYPE_HINGE_ANGLE unavailable; manual preview remains active"; return }
   live = true
