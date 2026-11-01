@@ -192,4 +192,43 @@
  <string name="flip_studio_no_live_reading">실시간 측정값이 없습니다. 수동 테스트를 선택해 움직여 보세요.</string>
  <string name="flip_studio_visual_only">미리보기 전환 구간은 시각 효과용 기준값이며, 실제 One UI의 화면 전환 시점과 같다고 보장하지 않습니다.</string>
 
+
+ <string name="flip_home_43">One UI 화면 전환 설정 및 진단</string>
+ <string name="flip_oneui_title">One UI 연속성 진단</string>
+ <string name="flip_oneui_setting_title">1. One UI에서 커버 화면 앱 허용</string>
+ <string name="flip_oneui_setting_path">설정 → 유용한 기능 → 실험실 → 커버 화면에서 앱 사용. 기능을 켜고 테스트할 앱을 선택하세요.</string>
+ <string name="flip_oneui_setting_detail">삼성은 Flip 5·6·7에서 이 기능을 지원한다고 안내합니다. 앱 목록과 지원 범위는 기기 소프트웨어 및 앱 버전에 따라 달라질 수 있습니다.</string>
+ <string name="flip_oneui_open_settings">설정 열기</string>
+ <string name="flip_oneui_actual_handoff">2. 실제 화면 전환은 One UI가 담당</string>
+ <string name="flip_oneui_actual_handoff_detail">기기를 접거나 펼쳤을 때 선택된 앱의 커버 화면 실행과 화면 크기 변경은 One UI가 처리합니다. 앱은 구성 변경을 처리하고 UI 상태를 유지해야 합니다.</string>
+ <string name="flip_oneui_setting_not_readable">Duo Flip은 One UI의 앱 허용 목록을 공개 Android API로 읽거나 변경하지 않습니다. 설정에서 직접 확인해야 합니다.</string>
+ <string name="flip_oneui_runtime_title">3. 실기기 전환 관찰</string>
+ <string name="flip_oneui_inner_candidate">내부 화면 후보</string>
+ <string name="flip_oneui_cover_candidate">커버 화면 후보</string>
+ <string name="flip_oneui_panel_invalid">해상도 확인 불가</string>
+ <string name="flip_oneui_panel_unknown">미확인 화면</string>
+ <string name="flip_oneui_display_metrics">현재 패널 후보: %1$s · 디스플레이 ID %2$d · 패널 해상도 %3$d×%4$d · 앱 창 %5$d×%6$d · dp %7$d×%8$d · 회전 %9$d</string>
+ <string name="flip_oneui_waiting_display">디스플레이 정보 확인 중</string>
+ <string name="flip_oneui_feature">접힘 영역: %1$s</string>
+ <string name="flip_oneui_feature_none">접힘 영역 정보 없음</string>
+ <string name="flip_oneui_feature_waiting">측정 대기 중</string>
+ <string name="flip_oneui_feature_value">방향 %1$s · 상태 %2$s · 분리 %3$s · 영역 [%4$d,%5$d - %6$d,%7$d]</string>
+ <string name="flip_oneui_angle">힌지 각도 %1$s · 출처 %2$s</string>
+ <string name="flip_oneui_sensor_missing">공용 힌지 센서 없음</string>
+ <string name="flip_oneui_sensor_waiting">센서 측정 대기 중</string>
+ <string name="flip_oneui_sensor_register_failed">공용 힌지 센서 등록 실패</string>
+ <string name="flip_oneui_sensor_active">Android 공용 힌지 센서 수신 중</string>
+ <string name="flip_oneui_sensor_unreliable">센서 측정 신뢰 불가</string>
+ <string name="flip_oneui_hal_source">삼성 HAL 로그 (%1$s)</string>
+ <string name="flip_oneui_public_source">Android 공용 힌지 센서</string>
+ <string name="flip_oneui_configuration_count">구성 변경 콜백: %1$d회</string>
+ <string name="flip_oneui_display_event_count">디스플레이 이벤트: %1$d회</string>
+ <string name="flip_oneui_log_title">이벤트 기록</string>
+ <string name="flip_oneui_log_help">기기를 접고 펼친 뒤 기록을 복사하면 One UI의 실제 동작을 분석하는 데 사용할 수 있습니다.</string>
+ <string name="flip_oneui_log_empty">아직 기록 없음</string>
+ <string name="flip_oneui_copy_log">기록 복사</string>
+ <string name="flip_oneui_clear_log">기록 지우기</string>
+ <string name="flip_oneui_log_copied">One UI 이벤트 기록 복사 완료</string>
+ <string name="flip_oneui_footer">읽기 전용 진단 도구입니다. 시스템 화면 강제 전환, 다른 앱의 작업 이동, 디스플레이 전원 제어는 수행하지 않습니다.</string>
+
 </resources>

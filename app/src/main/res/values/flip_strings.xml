@@ -191,4 +191,43 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_studio_no_live_reading">No live reading. Choose Manual test to move the preview.</string>
  <string name="flip_studio_visual_only">The preview transition range is a visual tuning value. It does not identify the real display handoff point used by One UI.</string>
 
+
+ <string name="flip_home_43">One UI handoff setup and diagnostics</string>
+ <string name="flip_oneui_title">One UI continuity diagnostics</string>
+ <string name="flip_oneui_setting_title">1. Allow apps on the cover screen in One UI</string>
+ <string name="flip_oneui_setting_path">Settings → Advanced features → Labs → Apps to use on cover screen. Enable the feature and select the apps to test.</string>
+ <string name="flip_oneui_setting_detail">Samsung lists this feature for Flip 5, Flip 6, and Flip 7. Available apps and behavior can vary by device software and app version.</string>
+ <string name="flip_oneui_open_settings">Open Settings</string>
+ <string name="flip_oneui_actual_handoff">2. One UI owns the actual display handoff</string>
+ <string name="flip_oneui_actual_handoff_detail">When the device folds or unfolds, One UI handles launching the selected app on the cover screen and changing the app window configuration. Apps must handle configuration changes and preserve UI state.</string>
+ <string name="flip_oneui_setting_not_readable">Duo Flip does not read or change the One UI app allowlist through public Android APIs. Check the setting manually.</string>
+ <string name="flip_oneui_runtime_title">3. Observe real-device transitions</string>
+ <string name="flip_oneui_inner_candidate">Inner-display candidate</string>
+ <string name="flip_oneui_cover_candidate">Cover-display candidate</string>
+ <string name="flip_oneui_panel_invalid">Invalid display dimensions</string>
+ <string name="flip_oneui_panel_unknown">Unknown display</string>
+ <string name="flip_oneui_display_metrics">Panel candidate: %1$s · display ID %2$d · panel %3$d×%4$d · app window %5$d×%6$d · dp %7$d×%8$d · rotation %9$d</string>
+ <string name="flip_oneui_waiting_display">Waiting for display information</string>
+ <string name="flip_oneui_feature">Folding feature: %1$s</string>
+ <string name="flip_oneui_feature_none">No folding feature reported</string>
+ <string name="flip_oneui_feature_waiting">Waiting for measurement</string>
+ <string name="flip_oneui_feature_value">orientation %1$s · state %2$s · separating %3$s · bounds [%4$d,%5$d - %6$d,%7$d]</string>
+ <string name="flip_oneui_angle">Hinge angle %1$s · source %2$s</string>
+ <string name="flip_oneui_sensor_missing">No public hinge sensor</string>
+ <string name="flip_oneui_sensor_waiting">Waiting for sensor readings</string>
+ <string name="flip_oneui_sensor_register_failed">Could not register the public hinge sensor</string>
+ <string name="flip_oneui_sensor_active">Receiving Android public hinge sensor readings</string>
+ <string name="flip_oneui_sensor_unreliable">Sensor reports unreliable readings</string>
+ <string name="flip_oneui_hal_source">Samsung HAL logs (%1$s)</string>
+ <string name="flip_oneui_public_source">Android public hinge sensor</string>
+ <string name="flip_oneui_configuration_count">Configuration callbacks: %1$d</string>
+ <string name="flip_oneui_display_event_count">Display events: %1$d</string>
+ <string name="flip_oneui_log_title">Event log</string>
+ <string name="flip_oneui_log_help">Fold and unfold the device, then copy the log to inspect what One UI actually reports.</string>
+ <string name="flip_oneui_log_empty">No events recorded yet</string>
+ <string name="flip_oneui_copy_log">Copy log</string>
+ <string name="flip_oneui_clear_log">Clear log</string>
+ <string name="flip_oneui_log_copied">One UI event log copied</string>
+ <string name="flip_oneui_footer">Read-only diagnostics. This screen does not force system display handoff, move another app task, or control display power.</string>
+
 </resources>

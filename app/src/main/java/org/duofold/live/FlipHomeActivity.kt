@@ -165,6 +165,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
  }
  private fun openPreview() { startActivity(Intent(this, FlipPreviewActivity::class.java)) }
  private fun openTransitionStudio() { startActivity(Intent(this, FlipTransitionStudioActivity::class.java)) }
+ private fun openOneUiContinuity() { startActivity(Intent(this, FlipOneUiContinuityActivity::class.java)) }
  @Composable private fun FlipInterface() {
   var page by rememberSaveable { mutableStateOf("home") }
   var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
@@ -238,6 +239,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
        Switch(checked = false, onCheckedChange = null, enabled = false)
       }
       Button(onClick = { openTransitionStudio() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_42)) }
+      OutlinedButton(onClick = { openOneUiContinuity() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_43)) }
       Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_19)) }
       OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_20)) }
      }
