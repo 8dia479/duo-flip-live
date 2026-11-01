@@ -17,8 +17,9 @@ class DuoTileService:TileService(),SharedPreferences.OnSharedPreferenceChangeLis
  override fun onTileAdded(){super.onTileAdded();refresh()}
  override fun onSharedPreferenceChanged(shared:SharedPreferences,key:String?){if(key=="enabled")refresh()}
  private fun refresh(){
-  val enabled=prefs.getBoolean("enabled",false)
-  qsTile?.apply{label="Duo Fold Live";subtitle=if(enabled)"On" else "Off";state=if(enabled)Tile.STATE_ACTIVE else Tile.STATE_INACTIVE;contentDescription="Duo Fold Live, ${if(enabled)"On" else "Off"}";updateTile()}
+  val blocked=DeviceCompatibility.isFlip6(android.os.Build.MODEL)
+  val enabled=prefs.getBoolean("enabled",false) && !blocked
+  qsTile?.apply{label="Duo Flip";subtitle=if(blocked)"Not verified" else if(enabled)"On" else "Off";state=if(enabled)Tile.STATE_ACTIVE else Tile.STATE_INACTIVE;contentDescription="Duo Flip, ${if(blocked)"not verified" else if(enabled)"on" else "off"}";updateTile()}
  }
  override fun onClick(){super.onClick();if(isLocked)unlockAndRun{toggle()}else toggle()}
  private fun toggle(){
@@ -27,7 +28,7 @@ class DuoTileService:TileService(),SharedPreferences.OnSharedPreferenceChangeLis
    Toast.makeText(this,"Flip 6 system animation is not verified. Use the isolated preview.",Toast.LENGTH_LONG).show();return
   }
   if(!wasEnabled && (!RuntimeConsent.ready(this)||FirstRun.required(this)||!Settings.canDrawOverlays(this)||StandaloneService.instance==null)){
-   val intent=Intent(this,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+   val intent=Intent(this,FlipHomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
    startActivityAndCollapse(PendingIntent.getActivity(this,35,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
    Toast.makeText(this,"Complete Duo Fold Live setup to enable animation",Toast.LENGTH_LONG).show()
    return

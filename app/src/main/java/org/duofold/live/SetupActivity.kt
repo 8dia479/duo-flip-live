@@ -200,7 +200,7 @@ class SetupActivity : ComponentActivity() {
          getSharedPreferences("standalone",0).edit().putBoolean("enabled",true).apply()
          startForegroundService(Intent(this@SetupActivity,FoldBackgroundService::class.java))
          StandaloneService.instance?.restart()
-         startActivity(Intent(this@SetupActivity,MainActivity::class.java))
+         startActivity(Intent(this@SetupActivity,FlipHomeActivity::class.java))
          if(custom&&hasPhoto)startActivity(Intent(this@SetupActivity,org.duofold.live.wallpaperlayer.WallpaperActivity::class.java).putExtra("auto_enable",true))
          finish()
         },enabled=consent&&overlay&&accessibility&&prefs.getBoolean("wallpaper_verified",false)){Text("Finish & enable animation")}

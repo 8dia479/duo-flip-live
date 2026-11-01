@@ -50,7 +50,7 @@ final class SupportPrompts {
   if(!nm.areNotificationsEnabled())return false;
   nm.createNotificationChannel(new NotificationChannel(CHANNEL,"Support the Project",NotificationManager.IMPORTANCE_DEFAULT));
   if(nm.getNotificationChannel(CHANNEL).getImportance()==NotificationManager.IMPORTANCE_NONE)return false;
-  PendingIntent donate=PendingIntent.getActivity(c,220,new Intent(c,MainActivity.class).setAction("org.duofold.live.SUPPORT"),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+  PendingIntent donate=PendingIntent.getActivity(c,220,new Intent(c,FlipHomeActivity.class).setAction("org.duofold.live.SUPPORT"),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
   try{nm.notify(ID,new Notification.Builder(c,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_compass).setContentTitle("Enjoying Duo Fold Live?").setContentText("Support future updates on Ko-fi. Always optional.").setContentIntent(donate).setAutoCancel(true)
    .addAction(new Notification.Action.Builder(null,"Support",donate).build())
    .addAction(new Notification.Action.Builder(null,"Snooze 7 days",action(c,"snooze",222)).build())

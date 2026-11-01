@@ -72,6 +72,9 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   super.onCreate(savedInstanceState)
   sensors = getSystemService(SensorManager::class.java)
   sensor = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
+  val previewPrefs = getSharedPreferences("flip_preview", 0)
+  directionSensitivity = previewPrefs.getFloat("sensitivity", 1f).let { if(it.isFinite()) it.coerceIn(.1f, 5f) else 1f }
+  deadband = previewPrefs.getFloat("deadband", 0f).let { if(it.isFinite()) it.coerceIn(0f, 3f) else 0f }
   displayManager = getSystemService(DisplayManager::class.java)
   refreshDisplays()
   val bitmap = createSample()
@@ -79,8 +82,8 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   setContent {
    DuoTheme {
     var manual by remember { mutableFloatStateOf(120f) }
-    var foldEffect by remember { mutableStateOf(true) }
-    var unfoldEffect by remember { mutableStateOf(true) }
+    var foldEffect by remember { mutableStateOf(previewPrefs.getBoolean("fold", true)) }
+    var unfoldEffect by remember { mutableStateOf(previewPrefs.getBoolean("unfold", true)) }
     var now by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
     var shizukuStatus by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
@@ -113,13 +116,13 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text(status)
       Text("Observed: ${samples.observation()} · accepted ${samples.accepted()} · rejected ${samples.rejected()}. This is not proof of continuous sensor support.")
       Text("Direction: $direction · hysteresis ${String.format(java.util.Locale.US, "%.1f", directionSensitivity)}°")
-      Slider(value = directionSensitivity, onValueChange = { directionSensitivity = it }, valueRange = .1f..5f)
+      Slider(value = directionSensitivity, onValueChange = { directionSensitivity = it; previewPrefs.edit().putFloat("sensitivity", it).apply() }, valueRange = .1f..5f)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-       FilterChip(selected = foldEffect, onClick = { foldEffect = !foldEffect }, label = { Text("Fold effect") })
-       FilterChip(selected = unfoldEffect, onClick = { unfoldEffect = !unfoldEffect }, label = { Text("Unfold effect") })
+       FilterChip(selected = foldEffect, onClick = { foldEffect = !foldEffect; previewPrefs.edit().putBoolean("fold", foldEffect).apply() }, label = { Text("Fold effect") })
+       FilterChip(selected = unfoldEffect, onClick = { unfoldEffect = !unfoldEffect; previewPrefs.edit().putBoolean("unfold", unfoldEffect).apply() }, label = { Text("Unfold effect") })
       }
       Text("Preview noise deadband: ${String.format(java.util.Locale.US, "%.1f", deadband)}° (0 = raw)")
-      Slider(value = deadband, onValueChange = { deadband = it }, valueRange = 0f..3f)
+      Slider(value = deadband, onValueChange = { deadband = it; previewPrefs.edit().putFloat("deadband", it).apply() }, valueRange = 0f..3f)
       Text("$shizukuStatus · read-only status, not used by preview")
       Text(remember { samsungWallpaperStatus() })
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

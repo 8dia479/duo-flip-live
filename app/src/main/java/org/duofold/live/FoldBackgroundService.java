@@ -50,7 +50,7 @@ createNotificationChannel(this);}
   context.getSystemService(NotificationManager.class).createNotificationChannel(channel);
  }
  private Notification notification(String message){
-  PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class),PendingIntent.FLAG_IMMUTABLE);
+  PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,FlipHomeActivity.class),PendingIntent.FLAG_IMMUTABLE);
   PendingIntent stop=PendingIntent.getService(this,1,new Intent(this,FoldBackgroundService.class).setAction("STOP"),PendingIntent.FLAG_IMMUTABLE);
   return new Notification.Builder(this,"fold_live").setSmallIcon(android.R.drawable.ic_menu_compass).setContentTitle("Duo Fold Live is running").setContentText(message).setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).addAction(new Notification.Action.Builder(null,"Stop all",stop).build()).build();
  }

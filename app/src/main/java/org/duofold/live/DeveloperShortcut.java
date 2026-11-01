@@ -36,7 +36,7 @@ final class DeveloperShortcut implements Application.ActivityLifecycleCallbacks 
    if(action==MotionEvent.ACTION_UP){
     if(captured&&eligible){
      if(activity instanceof MainActivity)((MainActivity)activity).openDeveloperSettings();
-     else activity.startActivity(new Intent(activity,MainActivity.class).putExtra(EXTRA,true).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+     else activity.startActivity(new Intent(activity,FlipHomeActivity.class).putExtra(EXTRA,true).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
     }
     captured=false;points.clear();
    }else if(action==MotionEvent.ACTION_CANCEL){captured=false;eligible=false;points.clear();}
