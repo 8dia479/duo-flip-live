@@ -50,8 +50,8 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
  private var sensorStatus by mutableStateOf(FlipHomePolicy.SensorStatus.WAITING)
  private var resumeVersion by mutableIntStateOf(0)
  private var panelInfo by mutableStateOf("")
- private var innerInfo by mutableStateOf("확인되지 않음")
- private var coverInfo by mutableStateOf("확인되지 않음")
+ private var innerInfo by mutableStateOf("")
+ private var coverInfo by mutableStateOf("")
  private val displayListener = object : DisplayManager.DisplayListener {
   override fun onDisplayAdded(id: Int) = refreshDisplays()
   override fun onDisplayRemoved(id: Int) = refreshDisplays()
@@ -98,33 +98,44 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   val all = displays.displays
   fun summary(kind: FlipDiagnostics.Panel): String {
    val matches = all.filter { FlipDiagnostics.panelCandidate(it.mode.physicalWidth, it.mode.physicalHeight) == kind }
-   if (matches.isEmpty()) return "확인되지 않음"
-   if (matches.size > 1) return "후보 여러 개 · 확인 필요"
-   val d = matches.first(); return "크기 후보 · ID ${d.displayId} · 상태 ${d.state}"
+   if (matches.isEmpty()) return getString(R.string.flip_home_00)
+   if (matches.size > 1) return getString(R.string.flip_home_01)
+   val d = matches.first(); return getString(R.string.flip_panel, d.displayId, d.state)
   }
   innerInfo = summary(FlipDiagnostics.Panel.INNER_CANDIDATE)
   coverInfo = summary(FlipDiagnostics.Panel.COVER_CANDIDATE)
   panelInfo = all.joinToString("\n") { d ->
    val m = DisplayMetrics(); d.getRealMetrics(m)
-   "ID ${d.displayId} · ${d.mode.physicalWidth}×${d.mode.physicalHeight} · ${m.densityDpi} dpi · 회전 ${d.rotation} · 상태 ${d.state}"
-  }.ifEmpty { "디스플레이 정보가 없습니다" }
+   getString(R.string.flip_home_display, d.displayId, d.mode.physicalWidth, d.mode.physicalHeight, m.densityDpi, d.rotation, d.state)
+  }.ifEmpty { getString(R.string.flip_prev_25) }
  }
  private fun sensorLabel() = when (sensorStatus) {
-  FlipHomePolicy.SensorStatus.UNAVAILABLE -> "연결 안 됨 · 센서를 찾을 수 없음"
-  FlipHomePolicy.SensorStatus.ERROR -> "오류 · 센서 또는 데이터 확인 필요"
-  FlipHomePolicy.SensorStatus.LIMITED -> "제한적 · 단계값만 관측됨"
-  FlipHomePolicy.SensorStatus.VARIED_UNVERIFIED -> "다양한 값 관측 · 연속성 미검증"
-  else -> "확인 중 · 기기를 천천히 접어 보세요"
+  FlipHomePolicy.SensorStatus.UNAVAILABLE -> getString(R.string.flip_home_02)
+  FlipHomePolicy.SensorStatus.ERROR -> getString(R.string.flip_home_03)
+  FlipHomePolicy.SensorStatus.LIMITED -> getString(R.string.flip_home_04)
+  FlipHomePolicy.SensorStatus.VARIED_UNVERIFIED -> getString(R.string.flip_home_05)
+  else -> getString(R.string.flip_home_06)
  }
- private fun posture(): String = if (!angle.isFinite() || sensorStatus == FlipHomePolicy.SensorStatus.ERROR) "확인되지 않음" else when {
-  angle <= 5 -> "닫힘으로 관측됨"
-  angle >= 175 -> "펼침으로 관측됨"
-  else -> "부분적으로 접힘"
+ private fun posture(): String = if (!angle.isFinite() || sensorStatus == FlipHomePolicy.SensorStatus.ERROR) getString(R.string.flip_home_00) else when {
+  angle <= 5 -> getString(R.string.flip_home_07)
+  angle >= 175 -> getString(R.string.flip_home_08)
+  else -> getString(R.string.flip_home_09)
+ }
+ private fun showShizukuDialog() {
+  val message = runCatching {
+   when {
+    !rikka.shizuku.Shizuku.pingBinder() -> getString(R.string.flip_shizuku_missing)
+    rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> getString(R.string.flip_shizuku_granted)
+    rikka.shizuku.Shizuku.shouldShowRequestPermissionRationale() -> getString(R.string.flip_shizuku_denied)
+    else -> { rikka.shizuku.Shizuku.requestPermission(42); getString(R.string.flip_shizuku_request) }
+   }
+  }.getOrElse { getString(R.string.flip_home_41) }
+  android.app.AlertDialog.Builder(this).setTitle(R.string.flip_shizuku_info).setMessage(message).setPositiveButton(R.string.flip_ok, null).show()
  }
  private fun openPreview() { startActivity(Intent(this, FlipPreviewActivity::class.java)) }
  @Composable private fun FlipInterface() {
   var page by rememberSaveable { mutableStateOf("home") }
-  var shizuku by remember { mutableStateOf("확인 중") }
+  var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
   val prefs = remember { getSharedPreferences("flip_preview", 0) }
   var sensitivity by remember { mutableFloatStateOf(prefs.getFloat("sensitivity", 1f).let { if (it.isFinite()) it.coerceIn(.1f, 5f) else 1f }) }
   var deadband by remember { mutableFloatStateOf(prefs.getFloat("deadband", 0f).let { if (it.isFinite()) it.coerceIn(0f, 3f) else 0f }) }
@@ -132,10 +143,10 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   var unfold by remember { mutableStateOf(prefs.getBoolean("unfold", true)) }
   LaunchedEffect(Unit) { while (true) {
    shizuku = runCatching { when {
-    !rikka.shizuku.Shizuku.pingBinder() -> "연결 안 됨"
-    rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> "연결됨 · 권한 허용"
-    else -> "연결됨 · 권한 필요"
-   } }.getOrDefault("상태 확인 불가")
+    !rikka.shizuku.Shizuku.pingBinder() -> getString(R.string.flip_home_38)
+    rikka.shizuku.Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED -> getString(R.string.flip_home_39)
+    else -> getString(R.string.flip_home_40)
+   } }.getOrDefault(getString(R.string.flip_home_41))
    delay(1500)
   } }
   LaunchedEffect(resumeVersion) {
@@ -148,76 +159,76 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
      Column(Modifier.weight(1f)) {
-      Text(if (page == "home") "Duo Flip" else "설정", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+      Text(if (page == "home") "Duo Flip" else getString(R.string.flip_home_11), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
       Text("Galaxy Z Flip 6", color = MaterialTheme.colorScheme.onSurfaceVariant)
      }
-     TextButton(onClick = { page = if (page == "home") "settings" else "home" }) { Text(if (page == "home") "설정" else "홈") }
+     TextButton(onClick = { page = if (page == "home") "settings" else "home" }) { Text(if (page == "home") getString(R.string.flip_home_11) else getString(R.string.flip_home_12)) }
     }
     if (page == "home") {
-     val model = if (DeviceCompatibility.isFlip6(Build.MODEL)) "Galaxy Z Flip 6 감지됨" else "${Build.MODEL} · Flip 6 이외의 기기 또는 미확인"
+     val model = if (DeviceCompatibility.isFlip6(Build.MODEL)) getString(R.string.flip_home_13) else getString(R.string.flip_other_device, Build.MODEL)
      Text(model, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
      FlipCard {
       Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
        PhoneIllustration()
        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("힌지 상태", style = MaterialTheme.typography.titleMedium)
-        Text(if (angle.isFinite() && sensorStatus != FlipHomePolicy.SensorStatus.ERROR) "${"%.0f".format(angle)}°" else "—", style = MaterialTheme.typography.headlineLarge)
+        Text(getString(R.string.flip_home_14), style = MaterialTheme.typography.titleMedium)
+        Text(if (angle.isFinite() && sensorStatus != FlipHomePolicy.SensorStatus.ERROR) "${"%.1f".format(angle)}°" else "—", style = MaterialTheme.typography.headlineLarge)
         Text(posture(), color = MaterialTheme.colorScheme.secondary)
         Text(sensorLabel(), style = MaterialTheme.typography.bodySmall)
        }
       }
      }
      FlipCard {
-      Text("화면 상태", style = MaterialTheme.typography.titleMedium)
-      Text("내부 화면  ·  $innerInfo")
-      Text("커버 화면  ·  $coverInfo")
-      Text("화면 크기를 이용한 후보이며 실제 패널 식별은 검증되지 않았습니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(getString(R.string.flip_home_15), style = MaterialTheme.typography.titleMedium)
+      Text(getString(R.string.flip_inner, innerInfo))
+      Text(getString(R.string.flip_cover, coverInfo))
+      Text(getString(R.string.flip_home_16), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
      }
      FlipCard {
       Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-       Column(Modifier.weight(1f)) { Text("시스템 애니메이션", style = MaterialTheme.typography.titleMedium); Text("Flip 6에서 아직 검증되지 않아 꺼져 있습니다.", style = MaterialTheme.typography.bodySmall) }
+       Column(Modifier.weight(1f)) { Text(getString(R.string.flip_home_17), style = MaterialTheme.typography.titleMedium); Text(getString(R.string.flip_home_18), style = MaterialTheme.typography.bodySmall) }
        Switch(checked = false, onCheckedChange = null, enabled = false)
       }
-      Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text("애니메이션 미리보기") }
-      OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text("진단 보기") }
+      Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_19)) }
+      OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_20)) }
      }
     } else if (page == "settings") {
      FlipCard {
-      Text("애니메이션", style = MaterialTheme.typography.titleLarge)
-      Text("시스템 효과는 비활성화되어 있습니다. 아래 설정은 미리보기에만 적용됩니다.", style = MaterialTheme.typography.bodySmall)
-      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("시스템 애니메이션", Modifier.weight(1f)); Switch(false, null, enabled = false) }
-      Text("애니메이션 속도 · 시스템 통합 전 사용 불가", color = MaterialTheme.colorScheme.onSurfaceVariant)
-      Text("방향 민감도 · ${"%.1f".format(sensitivity)}°")
+      Text(getString(R.string.flip_home_21), style = MaterialTheme.typography.titleLarge)
+      Text(getString(R.string.flip_home_22), style = MaterialTheme.typography.bodySmall)
+      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(getString(R.string.flip_home_17), Modifier.weight(1f)); Switch(false, null, enabled = false) }
+      Text(getString(R.string.flip_home_23), color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(getString(R.string.flip_sensitivity, sensitivity))
       Slider(sensitivity, { sensitivity = it; prefs.edit().putFloat("sensitivity", it).apply() }, valueRange = .1f..5f)
-      Text("센서 흔들림 무시 · ${"%.1f".format(deadband)}°")
+      Text(getString(R.string.flip_deadband_home, deadband))
       Slider(deadband, { deadband = it; prefs.edit().putFloat("deadband", it).apply() }, valueRange = 0f..3f)
-      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("접을 때 효과", Modifier.weight(1f)); Switch(fold, { fold = it; prefs.edit().putBoolean("fold", it).apply() }) }
-      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("펼칠 때 효과", Modifier.weight(1f)); Switch(unfold, { unfold = it; prefs.edit().putBoolean("unfold", it).apply() }) }
-      OutlinedButton(onClick = { openPreview() }) { Text("미리보기 설정 및 실행") }
+      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(getString(R.string.flip_home_24), Modifier.weight(1f)); Switch(fold, { fold = it; prefs.edit().putBoolean("fold", it).apply() }) }
+      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(getString(R.string.flip_home_25), Modifier.weight(1f)); Switch(unfold, { unfold = it; prefs.edit().putBoolean("unfold", it).apply() }) }
+      OutlinedButton(onClick = { openPreview() }) { Text(getString(R.string.flip_home_26)) }
      }
-     FlipCard { Text("기기", style = MaterialTheme.typography.titleLarge); Text("센서 · ${sensor?.name ?: "없음"}"); Text("내부 · $innerInfo"); Text("커버 · $coverInfo"); Text("$panelInfo\n패널 후보는 실제 식별이 아닙니다.", style = MaterialTheme.typography.bodySmall) }
+     FlipCard { Text(getString(R.string.flip_home_27), style = MaterialTheme.typography.titleLarge); Text(getString(R.string.flip_sensor_name, sensor?.name ?: getString(R.string.flip_home_28))); Text(getString(R.string.flip_inner_short, innerInfo)); Text(getString(R.string.flip_cover_short, coverInfo)); Text(getString(R.string.flip_panel_warning, panelInfo), style = MaterialTheme.typography.bodySmall) }
      FlipCard {
-      Text("권한 및 연결", style = MaterialTheme.typography.titleLarge)
+      Text(getString(R.string.flip_home_29), style = MaterialTheme.typography.titleLarge)
       Text("Shizuku · $shizuku")
-      Text("연결해도 시스템 제어는 자동 활성화되지 않습니다.", style = MaterialTheme.typography.bodySmall)
-      OutlinedButton(onClick = { ShizukuAccess.show(this@FlipHomeActivity, ShizukuAccess.request(this@FlipHomeActivity, 42)) }) { Text("Shizuku 연결 및 권한 확인") }
+      Text(getString(R.string.flip_home_30), style = MaterialTheme.typography.bodySmall)
+      OutlinedButton(onClick = { showShizukuDialog() }) { Text(getString(R.string.flip_home_31)) }
      }
-     OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text("고급 진단") }
+     OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_32)) }
     } else {
      FlipCard {
-      Text("고급 진단", style = MaterialTheme.typography.titleLarge)
-      Text(sensorLabel()); Text("각도 · ${if (angle.isFinite()) "${angle}°" else "측정값 없음"}")
+      Text(getString(R.string.flip_home_32), style = MaterialTheme.typography.titleLarge)
+      Text(sensorLabel()); Text(getString(R.string.flip_angle_label, if (angle.isFinite()) getString(R.string.flip_angle_value, angle) else getString(R.string.flip_no_reading)))
       Text("Shizuku · $shizuku"); Text(panelInfo)
-      Text("센서·화면 이벤트 기록과 CSV 복사는 진단 화면에서 사용할 수 있습니다. 실제 기기 검증은 아직 완료되지 않았습니다.", style = MaterialTheme.typography.bodySmall)
-      Button(onClick = { openPreview() }) { Text("실시간 진단 및 CSV") }
+      Text(getString(R.string.flip_home_33), style = MaterialTheme.typography.bodySmall)
+      Button(onClick = { openPreview() }) { Text(getString(R.string.flip_home_34)) }
       OutlinedButton(onClick = {
        RecoveryLog.init(this@FlipHomeActivity)
        (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Duo Flip 오류 로그", RecoveryLog.report()))
-       android.widget.Toast.makeText(this@FlipHomeActivity, "오류 로그를 복사했습니다", android.widget.Toast.LENGTH_SHORT).show()
-      }) { Text("오류 로그 복사") }
+       android.widget.Toast.makeText(this@FlipHomeActivity, getString(R.string.flip_home_36), android.widget.Toast.LENGTH_SHORT).show()
+      }) { Text(getString(R.string.flip_home_35)) }
      }
     }
-    Text("NOT TESTED ON DEVICE · 실제 시스템 화면 전환은 지원 확인 전입니다.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(getString(R.string.flip_home_37), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
    }
   }
  }

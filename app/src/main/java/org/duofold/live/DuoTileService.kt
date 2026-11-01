@@ -19,18 +19,18 @@ class DuoTileService:TileService(),SharedPreferences.OnSharedPreferenceChangeLis
  private fun refresh(){
   val blocked=DeviceCompatibility.isFlip6(android.os.Build.MODEL)
   val enabled=prefs.getBoolean("enabled",false) && !blocked
-  qsTile?.apply{label="Duo Flip";subtitle=if(blocked)"Not verified" else if(enabled)"On" else "Off";state=if(enabled)Tile.STATE_ACTIVE else Tile.STATE_INACTIVE;contentDescription="Duo Flip, ${if(blocked)"not verified" else if(enabled)"on" else "off"}";updateTile()}
+  qsTile?.apply{label="Duo Flip";subtitle=getString(if(blocked)R.string.flip_tile_unverified else if(enabled)R.string.flip_tile_on else R.string.flip_tile_off);state=if(enabled)Tile.STATE_ACTIVE else Tile.STATE_INACTIVE;contentDescription=getString(R.string.flip_tile_desc, getString(if(blocked)R.string.flip_tile_unverified else if(enabled)R.string.flip_tile_on else R.string.flip_tile_off));updateTile()}
  }
  override fun onClick(){super.onClick();if(isLocked)unlockAndRun{toggle()}else toggle()}
  private fun toggle(){
   val wasEnabled=prefs.getBoolean("enabled",false)
   if(!wasEnabled && DeviceCompatibility.isFlip6(android.os.Build.MODEL)){
-   Toast.makeText(this,"Flip 6 system animation is not verified. Use the isolated preview.",Toast.LENGTH_LONG).show();return
+   Toast.makeText(this,getString(R.string.flip_tile_blocked),Toast.LENGTH_LONG).show();return
   }
   if(!wasEnabled && (!RuntimeConsent.ready(this)||FirstRun.required(this)||!Settings.canDrawOverlays(this)||StandaloneService.instance==null)){
    val intent=Intent(this,FlipHomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
    startActivityAndCollapse(PendingIntent.getActivity(this,35,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-   Toast.makeText(this,"Complete Duo Fold Live setup to enable animation",Toast.LENGTH_LONG).show()
+   Toast.makeText(this,getString(R.string.flip_setup_required),Toast.LENGTH_LONG).show()
    return
   }
   try{
@@ -40,7 +40,7 @@ class DuoTileService:TileService(),SharedPreferences.OnSharedPreferenceChangeLis
   }catch(error:Exception){
    prefs.edit().putBoolean("enabled",wasEnabled).apply()
    RecoveryLog.add("Quick Settings toggle failed: ${error.javaClass.simpleName}")
-   Toast.makeText(this,"Could not toggle animation. Open Duo Fold Live to try again.",Toast.LENGTH_LONG).show()
+   Toast.makeText(this,getString(R.string.flip_toggle_failed),Toast.LENGTH_LONG).show()
   }
   refresh()
  }

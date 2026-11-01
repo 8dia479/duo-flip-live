@@ -30,4 +30,19 @@ public class FlipDiagnosticsTest {
   h.add(88,4,4,1); assertEquals(88f,h.displayed(),0f);
   h.add(90,5,5,Float.NaN); assertEquals(90f,h.displayed(),0f);
  }
+ @Test public void rawDecimalsSurviveAndMissingOrInvalidInputDoesNotInventValues() {
+  FlipDiagnostics.Hinge h = new FlipDiagnostics.Hinge();
+  assertTrue(Float.isNaN(h.raw()));
+  float[] angles = {0f, 12.4f, 37.8f, 64.2f, 89.7f, 113.5f, 147.2f, 179.8f, 180f, 0f, 0.1f};
+  for (int i=0; i<angles.length; i++) {
+   assertTrue(h.add(angles[i], i+1, i+1, 0f));
+   assertEquals(angles[i], h.raw(), 0f);
+   assertEquals(angles[i], h.displayed(), 0f);
+  }
+  assertFalse(h.add(-.1f, 12, 12, 0f));
+  assertFalse(h.add(180.1f, 13, 13, 0f));
+  assertFalse(h.add(Float.POSITIVE_INFINITY, 14, 14, 0f));
+  assertFalse(h.add(60f, 10, 15, 0f));
+  assertEquals(.1f, h.raw(), 0f);
+ }
 }
