@@ -42,10 +42,18 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  private var recording by mutableStateOf(false)
  private var recordCount by mutableIntStateOf(0)
  private val records = ArrayDeque<String>()
+ private val displayEvents = ArrayDeque<String>()
+ private var displayEventCount by mutableIntStateOf(0)
+ private fun recordDisplay(event: String, id: Int) {
+  if (!recording) return
+  if (displayEvents.size == 32) displayEvents.removeFirst()
+  displayEvents.addLast("${SystemClock.elapsedRealtimeNanos()},$event,$id")
+  displayEventCount = displayEvents.size
+ }
  private val displayListener = object : DisplayManager.DisplayListener {
-  override fun onDisplayAdded(id: Int) = refreshDisplays()
-  override fun onDisplayRemoved(id: Int) = refreshDisplays()
-  override fun onDisplayChanged(id: Int) = refreshDisplays()
+  override fun onDisplayAdded(id: Int) { recordDisplay("added", id); refreshDisplays() }
+  override fun onDisplayRemoved(id: Int) { recordDisplay("removed", id); refreshDisplays() }
+  override fun onDisplayChanged(id: Int) { recordDisplay("changed", id); refreshDisplays() }
  }
  private fun refreshDisplays() { displayText = displaySnapshot(); displayRevision++ }
  private var listening = false
@@ -88,6 +96,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text("Flip experimental preview", style = MaterialTheme.typography.headlineSmall)
       Text("In-app synthetic image only. No wallpaper changes, screen capture, Shizuku, overlay, or system display handoff. Flip 6 behavior is unverified.")
       Text("Hinge direction is an assumed horizontal axis, not a hardware detection result.")
+      Text("${android.os.Build.MODEL} / Android ${android.os.Build.VERSION.RELEASE}; public hinge sensor: ${sensor?.name ?: "unavailable"} (${sensor?.vendor ?: "unknown vendor"})")
       Text("Angle: ${angle.roundToInt()}°")
       Slider(value = manual, onValueChange = { manual = it }, valueRange = 0f..180f, enabled = !live)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -101,14 +110,19 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text("$shizukuStatus · read-only status, not used by preview")
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        OutlinedButton(onClick = { recording = !recording }) { Text(if (recording) "Stop recording" else "Record sensor") }
-       OutlinedButton(onClick = { records.clear(); recordCount = 0 }) { Text("Clear") }
+       OutlinedButton(onClick = { records.clear(); recordCount = 0; displayEvents.clear(); displayEventCount = 0 }) { Text("Clear") }
       }
       OutlinedButton(onClick = {
        val csv = "elapsed_nanos,angle_degrees,accuracy\n" + records.joinToString("\n")
        (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Flip sensor diagnostic", csv))
        android.widget.Toast.makeText(this@FlipPreviewActivity, "Copied $recordCount sensor events", android.widget.Toast.LENGTH_SHORT).show()
       }, enabled = recordCount > 0) { Text("Copy sensor CSV ($recordCount / 512)") }
-      Text("Recording is opt-in, in memory only, and limited to 512 events. Review before sharing.")
+      OutlinedButton(onClick = {
+       val csv = "elapsed_nanos,event,display_id\n" + displayEvents.joinToString("\n")
+       (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Flip display diagnostic", csv))
+       android.widget.Toast.makeText(this@FlipPreviewActivity, "Copied $displayEventCount display events", android.widget.Toast.LENGTH_SHORT).show()
+      }, enabled = displayEventCount > 0) { Text("Copy display events ($displayEventCount / 32)") }
+      Text("Recording is opt-in and memory-only. Sensor events: 512 maximum; display events: 32 maximum. It stops when this screen is backgrounded, so absence of events does not prove continuity. Review before sharing.")
       if (sampleTime > 0) Text("Last event: ${((now - sampleTime).coerceAtLeast(0L) / 1_000_000_000L)} s ago. On-change sensors can be silent while stationary; the last value is held, not extrapolated.")
       Text("A public sensor may report only a few postures, not continuous angles. Inspect the readings before drawing conclusions.")
       AndroidView(

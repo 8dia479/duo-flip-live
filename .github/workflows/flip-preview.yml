@@ -51,6 +51,8 @@ jobs:
           grep -q 'classes.dex' deliverables/apk-contents.txt
           grep -q 'resources.arsc' deliverables/apk-contents.txt
           (cd deliverables && sha256sum duo-flip-preview-debug.apk > SHA256SUMS.txt)
+          echo "::notice::$(cat deliverables/SHA256SUMS.txt)"
+          echo "::notice::$(grep -E '^package:|^sdkVersion:|^targetSdkVersion:' deliverables/package-info.txt | tr '\n' ' ')"
       - uses: actions/upload-artifact@v4
         with:
           name: flip-preview-debug-apk
