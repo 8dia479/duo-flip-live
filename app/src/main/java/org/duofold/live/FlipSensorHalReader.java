@@ -8,6 +8,7 @@ import android.os.SystemClock;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayDeque;
 
 /**
  * Shizuku user-service: reads only the sensors-hal log tag and exports parsed
@@ -32,6 +33,8 @@ public final class FlipSensorHalReader extends Binder {
     private volatile long parsedLines = 0L;
     private volatile long staleLines = 0L;
     private volatile String lastLine = "";
+    private static final int MAX_DIAGNOSTIC_LINES = 20;
+    private final ArrayDeque<String> recentLines = new ArrayDeque<>();
 
     public FlipSensorHalReader() {
         attachInterface(null, DESCRIPTOR);
@@ -86,6 +89,7 @@ public final class FlipSensorHalReader extends Binder {
                 ? Math.max(0L, (SystemClock.elapsedRealtimeNanos() - timestampNanos) / 1_000_000L)
                 : -1L);
         result.putString("lastLine", lastLine);
+        result.putString("recentLines", recentLinesText());
         return result;
     }
 
@@ -97,6 +101,7 @@ public final class FlipSensorHalReader extends Binder {
         source = -1;
         sequence = logLines = parsedLines = staleLines = 0L;
         lastLine = "";
+        recentLines.clear();
         state = "starting";
         Thread thread = new Thread(() -> {
             java.lang.Process child = null;
@@ -123,6 +128,9 @@ public final class FlipSensorHalReader extends Binder {
                         synchronized (this) {
                             if (currentGeneration != generation) return;
                             logLines++;
+                            lastLine = line;
+                            if (recentLines.size() >= MAX_DIAGNOSTIC_LINES) recentLines.removeFirst();
+                            recentLines.addLast(line);
                             if (sample == null) continue;
 
                             long epochMs = FlipSensorHalParser.logcatEpochMillis(line);
@@ -146,7 +154,6 @@ public final class FlipSensorHalReader extends Binder {
                             source = sample.source;
                             sequence++;
                             parsedLines++;
-                            lastLine = line;
                             state = "receiving";
                         }
                     }
@@ -166,6 +173,15 @@ public final class FlipSensorHalReader extends Binder {
         }, "duo-flip-sensors-hal");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private String recentLinesText() {
+        StringBuilder output = new StringBuilder();
+        for (String line : recentLines) {
+            if (output.length() > 0) output.append('\n');
+            output.append(line);
+        }
+        return output.toString();
     }
 
     private synchronized void stopReader() {
