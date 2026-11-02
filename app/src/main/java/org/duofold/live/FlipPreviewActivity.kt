@@ -159,7 +159,8 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       Text(if (live) getString(R.string.flip_live_source) else getString(R.string.flip_virtual_source), style = MaterialTheme.typography.titleMedium)
       Text(if (angle.isFinite()) getString(R.string.flip_angle_value, angle) else if (!live) getString(R.string.flip_angle_value, manual) else getString(R.string.flip_waiting_angle), style = MaterialTheme.typography.headlineLarge)
       if (live && samsungRaw.isFinite()) Text(getString(R.string.flip_hal_raw_and_estimate, samsungSourceName, samsungRaw, angle), style = MaterialTheme.typography.bodySmall)
-      Text(samsungHalStatus, style = MaterialTheme.typography.bodySmall)
+      if (live && !samsungEstimate.isFinite() && observed.isFinite()) Text(getString(R.string.flip_hal_fallback), style = MaterialTheme.typography.bodySmall)
+       Text(samsungHalStatus, style = MaterialTheme.typography.bodySmall)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        Button(onClick = { playing = true }, enabled = !playing) { Text(getString(R.string.flip_start_preview)) }
        OutlinedButton(onClick = { playing = false }, enabled = playing) { Text(getString(R.string.flip_stop_preview)) }
