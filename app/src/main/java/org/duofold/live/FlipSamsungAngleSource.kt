@@ -9,6 +9,7 @@ import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
 import android.os.Parcel
+import android.os.SystemClock
 import android.util.Log
 import rikka.shizuku.Shizuku
 
@@ -43,6 +44,8 @@ internal class FlipSamsungAngleSource(
     private var worker: Handler? = null
     private var lastSequence = 0L
     private var lastState = ""
+    private var startedAtMs = 0L
+    private var lastStatusAtMs = 0L
     private val timeout = Runnable {
         if (active && binding && binder == null) {
             binding = false
@@ -96,16 +99,30 @@ internal class FlipSamsungAngleSource(
                 return
             }
             val state = result.getString("state", "unknown")
-            if (state != lastState) {
+            val logLines = result.getLong("logLines")
+            val parsedLines = result.getLong("parsedLines")
+            val staleLines = result.getLong("staleLines")
+            val ageMs = result.getLong("ageMs", -1L)
+            val nowMs = SystemClock.elapsedRealtime()
+            val message = when {
+                state.startsWith("reader error") -> appContext.getString(R.string.flip_hal_logcat_error)
+                state == "log reader ended" -> appContext.getString(R.string.flip_hal_logcat_ended)
+                parsedLines > 0L -> appContext.getString(
+                    R.string.flip_hal_stats, parsedLines, logLines, ageMs.coerceAtLeast(0L)
+                )
+                logLines > 0L -> appContext.getString(
+                    R.string.flip_hal_unparsed, logLines, staleLines
+                )
+                state == "listening" && nowMs - startedAtMs >= NO_LOG_NOTICE_MS ->
+                    appContext.getString(R.string.flip_hal_no_lines)
+                state == "listening" -> appContext.getString(R.string.flip_hal_waiting)
+                else -> null
+            }
+            val stateChanged = state != lastState
+            if (message != null && (stateChanged || nowMs - lastStatusAtMs >= STATUS_INTERVAL_MS)) {
                 lastState = state
-                val message = when {
-                    state == "listening" -> appContext.getString(R.string.flip_hal_waiting)
-                    state == "receiving" -> appContext.getString(R.string.flip_hal_receiving)
-                    state.startsWith("reader error") -> appContext.getString(R.string.flip_hal_logcat_error)
-                    state == "log reader ended" -> appContext.getString(R.string.flip_hal_logcat_ended)
-                    else -> null
-                }
-                if (message != null) main.post { if (active) onStatus(message) }
+                lastStatusAtMs = nowMs
+                main.post { if (active) onStatus(message) }
             }
 
             val sequence = result.getLong("sequence")
@@ -138,6 +155,8 @@ internal class FlipSamsungAngleSource(
         binding = true
         lastSequence = 0L
         lastState = ""
+        startedAtMs = SystemClock.elapsedRealtime()
+        lastStatusAtMs = 0L
         onStatus(appContext.getString(R.string.flip_hal_connecting))
         val nextArgs = Shizuku.UserServiceArgs(
             ComponentName(appContext, FlipSensorHalReader::class.java)
@@ -220,5 +239,7 @@ internal class FlipSamsungAngleSource(
         const val TAG = "DuoFlipHinge"
         const val POLL_INTERVAL_MS = 40L
         const val BIND_TIMEOUT_MS = 10_000L
+        const val NO_LOG_NOTICE_MS = 3_000L
+        const val STATUS_INTERVAL_MS = 1_000L
     }
 }
