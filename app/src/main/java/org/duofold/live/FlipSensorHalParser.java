@@ -9,12 +9,13 @@ public final class FlipSensorHalParser {
     public static final int SOURCE_LID = 1;
     public static final int SOURCE_SHUT = 2;
 
+    private static final int FLAGS = Pattern.CASE_INSENSITIVE;
     private static final Pattern DEVICE_MODE = Pattern.compile(
-            "\\]folding_angle\\s+device_mode\\(\\d+\\s*->\\s*(\\d+)\\)");
+            "\\bfolding_angle\\s+device_mode\\(\\s*\\d+\\s*->\\s*(\\d+)\\s*\\)", FLAGS);
     private static final Pattern FOLDING = Pattern.compile(
-            "\\]folding_angle\\s+ts=(\\d+)\\s+ns\\s+value\\s+\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*/");
+            "\\bfolding_angle\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
     private static final Pattern LID = Pattern.compile(
-            "\\]lid_angle_fusion\\s+ts=(\\d+)\\s+ns\\s+value\\s+\\[\\s*-?\\d+(?:\\.\\d+)?\\s*/\\s*(-?\\d+(?:\\.\\d+)?)\\s*/");
+            "\\blid_angle_fusion\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[\\s*-?\\d+(?:\\.\\d+)?\\s*/\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
 
     private FlipSensorHalParser() {}
 
