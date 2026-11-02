@@ -154,6 +154,9 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_hal_logcat_ended">The sensor log stream ended.</string>
  <string name="flip_hal_no_lines">No sensors-hal log lines have appeared yet. Move the hinge to test the stream.</string>
  <string name="flip_hal_unparsed">HAL log lines: %1$d · parsed hinge samples: 0 · stale records: %2$d</string>
+ <string name="flip_hal_log_sample">Recent raw sensors-hal log lines</string>
+ <string name="flip_hal_copy_logs">Copy HAL logs</string>
+ <string name="flip_hal_logs_copied">HAL diagnostic logs copied</string>
  <string name="flip_hal_stats">Shizuku HAL live · %1$d hinge samples / %2$d log lines · latest sample %3$d ms ago</string>
  <string name="flip_hal_fallback">No Shizuku hinge sample yet. The displayed angle is from Android’s standard hinge sensor and may be limited to 0° / 90° / 180°.</string>
  <string name="flip_hal_raw_and_estimate">Raw reading (%1$s): %2$.1f° · animation estimate: %3$.1f°</string>
