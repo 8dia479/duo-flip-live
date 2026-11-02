@@ -153,6 +153,10 @@
  <string name="flip_hal_read_failed">삼성 센서 로그 상태를 읽지 못했습니다.</string>
  <string name="flip_hal_logcat_error">센서 로그 읽기 오류입니다. 권한 또는 로그 접근을 확인하세요.</string>
  <string name="flip_hal_logcat_ended">센서 로그 스트림이 종료되었습니다.</string>
+ <string name="flip_hal_no_lines">sensors-hal 로그가 아직 없습니다. 힌지를 움직여 로그 수신을 확인하세요.</string>
+ <string name="flip_hal_unparsed">HAL 로그 %1$d줄 수신 · 힌지값 파싱 0개 · 오래된 로그 %2$d줄</string>
+ <string name="flip_hal_stats">Shizuku HAL 실시간 수신 · 힌지값 %1$d개 / 로그 %2$d줄 · 마지막 측정 %3$dms 전</string>
+ <string name="flip_hal_fallback">Shizuku 힌지값을 아직 받지 못했습니다. 현재 각도는 0°·90°·180°만 나올 수 있는 Android 기본 센서값입니다.</string>
  <string name="flip_hal_raw_and_estimate">원시 측정값(%1$s): %2$.1f° · 화면 효과용 추정값: %3$.1f°</string>
  <string name="flip_hal_sensor_active">삼성 정밀 힌지 센서 로그 사용 중</string>
  <string name="flip_vendor_inventory">기기 접힘 관련 센서 목록:\n%1$s</string>
