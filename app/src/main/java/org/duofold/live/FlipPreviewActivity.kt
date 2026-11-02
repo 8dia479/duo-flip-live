@@ -72,6 +72,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
  private var samsungReceivedAtNanos by mutableLongStateOf(0L)
  private var samsungSourceName by mutableStateOf("")
  private var samsungHalStatus by mutableStateOf("")
+ private var samsungHalLog by mutableStateOf("")
  private var samsungSource: FlipSamsungAngleSource? = null
  private var status by mutableStateOf("")
 
@@ -102,7 +103,8 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
      recordCount = records.size
     }
    },
-   onStatus = { samsungHalStatus = it }
+   onStatus = { samsungHalStatus = it },
+   onDiagnostics = { samsungHalLog = it }
   )
   val bitmap = createSample()
   val frame = GlassFrame(bitmap, bitmap.width, bitmap.height, 0L)
@@ -161,6 +163,16 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
       if (live && samsungRaw.isFinite()) Text(getString(R.string.flip_hal_raw_and_estimate, samsungSourceName, samsungRaw, angle), style = MaterialTheme.typography.bodySmall)
       if (live && !samsungEstimate.isFinite() && observed.isFinite()) Text(getString(R.string.flip_hal_fallback), style = MaterialTheme.typography.bodySmall)
        Text(samsungHalStatus, style = MaterialTheme.typography.bodySmall)
+      if (samsungHalLog.isNotBlank()) {
+       Text(getString(R.string.flip_hal_log_sample), style = MaterialTheme.typography.titleSmall)
+       Text(samsungHalLog, style = MaterialTheme.typography.bodySmall, maxLines = 12)
+       OutlinedButton(onClick = {
+        (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(
+         ClipData.newPlainText("Samsung HAL diagnostic logs", samsungHalLog)
+        )
+        android.widget.Toast.makeText(this@FlipPreviewActivity, getString(R.string.flip_hal_logs_copied), android.widget.Toast.LENGTH_SHORT).show()
+       }) { Text(getString(R.string.flip_hal_copy_logs)) }
+      }
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
        Button(onClick = { playing = true }, enabled = !playing) { Text(getString(R.string.flip_start_preview)) }
        OutlinedButton(onClick = { playing = false }, enabled = playing) { Text(getString(R.string.flip_stop_preview)) }
@@ -226,7 +238,7 @@ class FlipPreviewActivity : ComponentActivity(), SensorEventListener {
   }
   live = true
   samples.reset(); observed = Float.NaN; sampleTime = 0L
-  samsungEstimator.reset(); samsungRaw = Float.NaN; samsungTimestampNanos = 0L; samsungReceivedAtNanos = 0L; samsungSourceName = ""
+  samsungEstimator.reset(); samsungRaw = Float.NaN; samsungTimestampNanos = 0L; samsungReceivedAtNanos = 0L; samsungSourceName = ""; samsungHalLog = ""
   if (started && sensor != null) startSensor()
   else if (sensor == null) status = getString(R.string.flip_prev_19)
   samsungSource?.start()
