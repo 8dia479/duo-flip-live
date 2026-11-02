@@ -18,6 +18,7 @@ internal class FlipSamsungAngleSource(
     context: Context,
     private val onReading: (Reading) -> Unit,
     private val onStatus: (String) -> Unit,
+    private val onDiagnostics: (String) -> Unit,
 ) {
     data class Reading(
         val angle: Float,
@@ -46,6 +47,7 @@ internal class FlipSamsungAngleSource(
     private var lastState = ""
     private var startedAtMs = 0L
     private var lastStatusAtMs = 0L
+    private var lastDiagnostics = ""
     private val timeout = Runnable {
         if (active && binding && binder == null) {
             binding = false
@@ -97,6 +99,11 @@ internal class FlipSamsungAngleSource(
                 main.post { if (active) onStatus(appContext.getString(R.string.flip_hal_read_failed)) }
                 worker?.postDelayed(this, POLL_INTERVAL_MS)
                 return
+            }
+            val diagnostics = result.getString("recentLines").orEmpty()
+            if (diagnostics.isNotBlank() && diagnostics != lastDiagnostics) {
+                lastDiagnostics = diagnostics
+                main.post { if (active) onDiagnostics(diagnostics) }
             }
             val state = result.getString("state", "unknown")
             val logLines = result.getLong("logLines")
@@ -155,6 +162,7 @@ internal class FlipSamsungAngleSource(
         binding = true
         lastSequence = 0L
         lastState = ""
+        lastDiagnostics = ""
         startedAtMs = SystemClock.elapsedRealtime()
         lastStatusAtMs = 0L
         onStatus(appContext.getString(R.string.flip_hal_connecting))
