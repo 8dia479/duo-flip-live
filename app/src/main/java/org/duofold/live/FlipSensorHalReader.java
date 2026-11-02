@@ -103,7 +103,7 @@ public final class FlipSensorHalReader extends Binder {
             try {
                 child = new ProcessBuilder(
                         "logcat", "-v", "epoch", "-T", "1",
-                        "-s", "sensors-hal:I", "*:S")
+                        " -s", "sensors-hal:V", "*:S")
                         .redirectErrorStream(true)
                         .start();
                 synchronized (this) {
