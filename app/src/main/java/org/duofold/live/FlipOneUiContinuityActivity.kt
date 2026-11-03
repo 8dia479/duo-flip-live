@@ -100,7 +100,8 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
                 samsungSourceName = reading.sourceName
                 samsungStatus = getString(R.string.flip_hal_last_reading, reading.sourceName)
             },
-            onStatus = { message -> samsungStatus = message }
+            onStatus = { message -> samsungStatus = message },
+            onDiagnostics = { /* This screen records continuity events, not raw HAL logs. */ }
         )
 
         refreshDisplaySnapshot()
