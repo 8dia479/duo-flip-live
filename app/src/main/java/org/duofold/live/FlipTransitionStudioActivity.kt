@@ -54,7 +54,8 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
                 samsungSourceName = reading.sourceName
                 refreshDisplayedAngle()
             },
-            onStatus = { sensorStatus = it }
+            onStatus = { sensorStatus = it },
+            onDiagnostics = { /* Raw HAL logs are available in the dedicated preview screen. */ }
         )
         setContent { DuoTheme { StudioContent() } }
     }
