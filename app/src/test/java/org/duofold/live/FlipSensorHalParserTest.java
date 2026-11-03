@@ -36,6 +36,28 @@ public class FlipSensorHalParserTest {
         assertEquals(FlipSensorHalParser.SOURCE_LID, sample.source);
     }
 
+    @Test public void parsesActualFlip6FoldingAngleLogWithoutBracket() {
+        FlipSensorHalParser.Sample sample = FlipSensorHalParser.parse(
+                "1793746396.189 1850 6690 I sensors-hal: handle_sns_client_event:94, " +
+                "folding_angle ts=136459092423192 ns value 84/0 " +
+                "(0/0/1/1 -1.464/9.136/-2.924 -1.512/1.598/9.744 8 0)");
+        assertNotNull(sample);
+        assertEquals(84f, sample.angle, 0.001f);
+        assertEquals(136459092423192L, sample.timestampNanos);
+        assertEquals(FlipSensorHalParser.SOURCE_FOLDING, sample.source);
+    }
+
+    @Test public void parsesActualFlip6LidFusionLogWithoutBracket() {
+        FlipSensorHalParser.Sample sample = FlipSensorHalParser.parse(
+                "1793746396.149 1850 4238 I sensors-hal: handle_sns_client_event:182, " +
+                "lid_angle_fusion ts=136459052418504 ns value 2/ 87/3 87/3 " +
+                "-1/-1 0/0/0 (0/0/1/1 -1.675/9.222/-2.489 -1.785/1.909/9.528 3)");
+        assertNotNull(sample);
+        assertEquals(87f, sample.angle, 0.001f);
+        assertEquals(136459052418504L, sample.timestampNanos);
+        assertEquals(FlipSensorHalParser.SOURCE_LID, sample.source);
+    }
+
     @Test public void closedHallTransitionIsAnEndpointOnly() {
         FlipSensorHalParser.Sample closed = FlipSensorHalParser.parse(
                 "06-24 12:00:00.123  1000  1000 I sensors-hal: [0]folding_angle device_mode(0 -> 1)");
