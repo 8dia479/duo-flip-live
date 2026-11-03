@@ -10,12 +10,15 @@ public final class FlipSensorHalParser {
     public static final int SOURCE_SHUT = 2;
 
     private static final int FLAGS = Pattern.CASE_INSENSITIVE;
+    // Samsung firmware log formats differ: some builds print "value [84/0",
+    // while the Flip 6 prints "value 84/0". Accept both.
     private static final Pattern DEVICE_MODE = Pattern.compile(
             "\\bfolding_angle\\s+device_mode\\(\\s*\\d+\\s*->\\s*(\\d+)\\s*\\)", FLAGS);
     private static final Pattern FOLDING = Pattern.compile(
-            "\\bfolding_angle\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
+            "\\bfolding_angle\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[?\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
+    // lid_angle_fusion prefixes the angle with a status field, e.g. "value 2/ 87/3".
     private static final Pattern LID = Pattern.compile(
-            "\\blid_angle_fusion\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[\\s*-?\\d+(?:\\.\\d+)?\\s*/\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
+            "\\blid_angle_fusion\\s+ts\\s*=\\s*(\\d+)\\s+ns\\s+value\\s*\\[?\\s*-?\\d+(?:\\.\\d+)?\\s*/\\s*(-?\\d+(?:\\.\\d+)?)\\s*/", FLAGS);
 
     private FlipSensorHalParser() {}
 
