@@ -7,6 +7,10 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -125,11 +129,23 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
     @Composable
     private fun StudioContent() {
         val prefs = remember { getSharedPreferences("flip_preview", MODE_PRIVATE) }
-        var manualMode by remember { mutableStateOf(false) }
-        var manualAngle by remember { mutableFloatStateOf(180f) }
-        var style by remember {
+        // Open directly into a usable manual preview; live sensor input is optional.
+        var manualMode by rememberSaveable { mutableStateOf(true) }
+        var manualAngle by rememberSaveable { mutableFloatStateOf(90f) }
+        var demoRunning by rememberSaveable { mutableStateOf(false) }
+        val demoAngle = remember { Animatable(90f) }
+        var style by rememberSaveable {
             mutableStateOf(prefs.getString("transition_style", "fade")
                 ?.takeIf { it == "fade" || it == "slide" || it == "zoom" } ?: "fade")
+        }
+        LaunchedEffect(demoRunning) {
+            if (demoRunning) {
+                while (true) {
+                    demoAngle.snapTo(0f)
+                    demoAngle.animateTo(180f, tween(1600, easing = LinearEasing))
+                    demoAngle.animateTo(0f, tween(1600, easing = LinearEasing))
+                }
+            }
         }
         LaunchedEffect(Unit) {
             while (true) {
@@ -138,7 +154,12 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
             }
         }
 
-        val previewAngle = if (manualMode) manualAngle else displayedAngle
+        val previewAngle = when {
+            demoRunning -> demoAngle.value
+            manualMode -> manualAngle
+            displayedAngle.isFinite() -> displayedAngle
+            else -> manualAngle
+        }
         Surface(Modifier.fillMaxSize()) {
             Column(
                 Modifier.fillMaxSize().safeDrawingPadding()
@@ -155,6 +176,7 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
                     TextButton(onClick = { finish() }) { Text(getString(R.string.flip_home_12)) }
                 }
                 Text(getString(R.string.flip_studio_description))
+                TransitionPreview(previewAngle, style)
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
@@ -166,8 +188,14 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = !manualMode, onClick = { manualMode = false },
                                 label = { Text(getString(R.string.flip_studio_live)) })
-                            FilterChip(selected = manualMode, onClick = { manualMode = true },
+                            FilterChip(selected = manualMode, onClick = { manualMode = true; demoRunning = false },
                                 label = { Text(getString(R.string.flip_studio_manual)) })
+                        }
+                        Button(
+                            onClick = { demoRunning = !demoRunning },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(getString(if (demoRunning) R.string.flip_studio_stop_demo else R.string.flip_studio_demo))
                         }
                         if (manualMode) {
                             Text(getString(R.string.flip_studio_manual_help), style = MaterialTheme.typography.bodySmall)
@@ -201,7 +229,6 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                TransitionPreview(previewAngle, style)
                 Text(getString(R.string.flip_studio_visual_only), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(getString(R.string.flip_studio_disclaimer), style = MaterialTheme.typography.bodySmall,

@@ -196,6 +196,8 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_studio_preview_heading">App-surface handoff preview</string>
  <string name="flip_studio_time">09:41</string>
  <string name="flip_studio_no_live_reading">No live reading. Choose Manual test to move the preview.</string>
+ <string name="flip_studio_demo">Play preview demo</string>
+ <string name="flip_studio_stop_demo">Stop demo</string>
  <string name="flip_studio_visual_only">The preview transition range is a visual tuning value. It does not identify the real display handoff point used by One UI.</string>
 
 

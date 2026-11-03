@@ -10,8 +10,6 @@ class FlipSamsungHingeEstimatorTest {
         estimator.add(40f, 1_000_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
         estimator.add(45f, 1_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
 
-        // The raw HAL readings are 40° and 45°; only the animation estimate
-        // is allowed to move between them based on the measured sample times.
         val estimate = estimator.estimate(1_150_000_000L)
         assertTrue(estimate > 45f)
         assertTrue(estimate < 60f)
@@ -37,5 +35,36 @@ class FlipSamsungHingeEstimatorTest {
         estimator.add(45f, 1_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
         estimator.add(0f, 1_200_000_000L, FlipSensorHalParser.SOURCE_SHUT)
         assertEquals(0f, estimator.estimate(1_250_000_000L), 0f)
+    }
+
+    @Test fun rejectsAnIsolatedOneFrameAngleSpike() {
+        val estimator = FlipSamsungHingeEstimator()
+        estimator.add(40f, 1_000_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        estimator.add(44f, 1_050_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        estimator.add(112f, 1_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        assertEquals(44f, estimator.estimate(1_110_000_000L), 0f)
+
+        estimator.add(46f, 1_150_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        assertEquals(46f, estimator.estimate(1_150_000_000L), 0.01f)
+    }
+
+    @Test fun confirmsARealFastMovementOnTheFollowingSample() {
+        val estimator = FlipSamsungHingeEstimator()
+        estimator.add(40f, 2_000_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        estimator.add(66f, 2_050_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        assertEquals(40f, estimator.estimate(2_060_000_000L), 0f)
+
+        estimator.add(70f, 2_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        val estimate = estimator.estimate(2_150_000_000L)
+        assertTrue(estimate > 70f)
+        assertTrue(estimate < 95f)
+    }
+
+    @Test fun ignoresOutOfOrderSamples() {
+        val estimator = FlipSamsungHingeEstimator()
+        estimator.add(40f, 3_000_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        estimator.add(45f, 3_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        estimator.add(130f, 3_050_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
+        assertEquals(45f, estimator.estimate(3_100_000_000L), 0f)
     }
 }

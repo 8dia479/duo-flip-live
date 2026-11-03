@@ -5,11 +5,11 @@ import kotlin.math.exp
 import kotlin.math.sign
 
 /**
- * Estimates motion only between real Samsung HAL readings.
+ * Interpolates between confirmed Samsung HAL samples.
  *
- * Raw samples remain untouched and are shown separately. The 11°/10° step
- * limits were observed on a different Galaxy Fold model; they are provisional
- * on Flip 6 and must be checked against its diagnostic CSV.
+ * A large one-frame discontinuity is held as a candidate until the next
+ * same-source sample confirms it. The raw reader remains untouched; only the
+ * animation estimate is protected from transient spikes.
  */
 internal class FlipSamsungHingeEstimator {
     private class Track(val step: Float) {
@@ -17,6 +17,13 @@ internal class FlipSamsungHingeEstimator {
         var nanos = 0L
         var speed = Float.NaN
         var live = false
+        var pendingAngle = Float.NaN
+        var pendingNanos = 0L
+
+        fun clearPending() {
+            pendingAngle = Float.NaN
+            pendingNanos = 0L
+        }
     }
 
     private val tracks = arrayOf(Track(11f), Track(10f))
@@ -36,9 +43,48 @@ internal class FlipSamsungHingeEstimator {
             reset(angle, sampleNanos)
             return
         }
-        if (lastNanos != 0L && sampleNanos - lastNanos > GAP_NANOS) beginMovement()
+        if (track.live && sampleNanos <= track.nanos) return
 
         val previous = track.angle
+        val delta = if (previous.isFinite()) angle - previous else 0f
+        val dtNanos = if (track.live) sampleNanos - track.nanos else Long.MAX_VALUE
+
+        // A real fast hinge movement is confirmed by the following sample.
+        // An isolated jump which immediately returns near the last accepted
+        // angle is discarded before it can affect the animation.
+        if (track.pendingAngle.isFinite()) {
+            val pendingAge = sampleNanos - track.pendingNanos
+            if (pendingAge in 0L..PENDING_TIMEOUT_NANOS) {
+                val pendingDelta = track.pendingAngle - previous
+                val confirmsCandidate =
+                    abs(angle - track.pendingAngle) <= CONFIRM_RADIUS_DEG ||
+                    (pendingDelta != 0f &&
+                        sign(angle - previous) == sign(pendingDelta) &&
+                        abs(delta) >= abs(pendingDelta) - CONTINUATION_TOLERANCE_DEG)
+                val returnedToBaseline = abs(delta) <= SPIKE_RETURN_RADIUS_DEG
+                if (confirmsCandidate) {
+                    track.clearPending()
+                } else if (returnedToBaseline) {
+                    track.clearPending()
+                } else {
+                    track.pendingAngle = angle
+                    track.pendingNanos = sampleNanos
+                    return
+                }
+            } else {
+                track.clearPending()
+            }
+        } else if (previous.isFinite() &&
+            dtNanos in 1L..SPIKE_WINDOW_NANOS &&
+            abs(delta) >= SPIKE_THRESHOLD_DEG
+        ) {
+            track.pendingAngle = angle
+            track.pendingNanos = sampleNanos
+            return
+        }
+
+        if (lastNanos != 0L && sampleNanos - lastNanos > GAP_NANOS) beginMovement()
+
         val moved = if (previous.isFinite()) angle - previous else 0f
         val reversed = moved != 0f && direction != 0 && sign(moved).toInt() != direction
         if (reversed) beginMovement()
@@ -122,6 +168,7 @@ internal class FlipSamsungHingeEstimator {
         for (track in tracks) {
             track.live = false
             track.speed = Float.NaN
+            track.clearPending()
         }
         direction = 0
         velocity = 0f
@@ -148,5 +195,11 @@ internal class FlipSamsungHingeEstimator {
         const val CRUISE = 0.7f
         const val SLACK_S = 0.06f
         const val MAX_COAST_NANOS = 1_500_000_000L
+        const val SPIKE_WINDOW_NANOS = 180_000_000L
+        const val PENDING_TIMEOUT_NANOS = 280_000_000L
+        const val SPIKE_THRESHOLD_DEG = 18f
+        const val CONFIRM_RADIUS_DEG = 11f
+        const val CONTINUATION_TOLERANCE_DEG = 8f
+        const val SPIKE_RETURN_RADIUS_DEG = 10f
     }
 }
