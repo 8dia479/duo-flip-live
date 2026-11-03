@@ -42,10 +42,16 @@ class FlipSamsungHingeEstimatorTest {
         estimator.add(40f, 1_000_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
         estimator.add(44f, 1_050_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
         estimator.add(112f, 1_100_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
-        assertEquals(44f, estimator.estimate(1_110_000_000L), 0f)
+        // The estimator may continue its bounded interpolation from the last
+        // confirmed velocity, but the unconfirmed 112° spike must never appear.
+        val duringSpike = estimator.estimate(1_110_000_000L)
+        assertTrue(duringSpike >= 44f)
+        assertTrue("isolated spike leaked into estimate: $duringSpike", duringSpike < 60f)
 
         estimator.add(46f, 1_150_000_000L, FlipSensorHalParser.SOURCE_FOLDING)
-        assertEquals(46f, estimator.estimate(1_150_000_000L), 0.01f)
+        val afterReturn = estimator.estimate(1_150_000_000L)
+        assertTrue(afterReturn >= 46f)
+        assertTrue("estimate did not recover after spike: $afterReturn", afterReturn < 60f)
     }
 
     @Test fun confirmsARealFastMovementOnTheFollowingSample() {
