@@ -85,7 +85,8 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
     samsungStatus = getString(R.string.flip_hal_last_reading, reading.sourceName)
     refreshSensorStatus()
    },
-   onStatus = { samsungStatus = it }
+   onStatus = { samsungStatus = it },
+   onDiagnostics = { /* Diagnostics are displayed in the dedicated preview screen. */ }
   )
   refreshDisplays()
   rikka.shizuku.Shizuku.addRequestPermissionResultListener(permissionListener)
