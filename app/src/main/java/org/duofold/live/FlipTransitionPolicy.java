@@ -5,6 +5,14 @@ public final class FlipTransitionPolicy {
     private FlipTransitionPolicy() {}
     public enum Posture { UNKNOWN, COVER, TRANSITION, INNER }
     public static boolean isValidAngle(float angle) { return Float.isFinite(angle) && angle >= 0f && angle <= 180f; }
+
+    /** True only while a monotonic-clock sensor sample is recent enough to drive live UI. */
+    public static boolean isFreshSample(long receivedAtNanos, long nowNanos, long maxAgeNanos) {
+        return receivedAtNanos > 0L
+                && nowNanos >= receivedAtNanos
+                && maxAgeNanos >= 0L
+                && nowNanos - receivedAtNanos <= maxAgeNanos;
+    }
     public static float handoffProgress(float angle) {
         if (!isValidAngle(angle)) return Float.NaN;
         return smoothStep(angle, 65f, 115f);
