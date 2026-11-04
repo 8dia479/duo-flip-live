@@ -4,6 +4,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.View
@@ -38,6 +39,7 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
     private var hingeSensor: Sensor? = null
     private var publicRegistered = false
     private var publicAngle = Float.NaN
+    private var publicReceivedAtNs = 0L
     private val samsungEstimator = FlipSamsungHingeEstimator()
     private var samsungRawAngle by mutableFloatStateOf(Float.NaN)
     private var samsungReceivedAtNs = 0L
@@ -92,6 +94,12 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
         if (hasFocus) enterImmersivePreview()
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // One UI may re-apply window insets while moving the task between panels.
+        enterImmersivePreview()
+    }
+
     override fun onStart() {
         super.onStart()
         publicRegistered = hingeSensor?.let {
@@ -112,13 +120,9 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
         publicRegistered = false
         samsungSource?.stop()
-        samsungEstimator.reset()
-        samsungRawAngle = Float.NaN
-        samsungReceivedAtNs = 0L
-        samsungSourceName = ""
-        publicAngle = Float.NaN
-        displayedAngle = Float.NaN
-        displayedSource = ""
+        // Keep the last timestamped sample briefly across a fold/unfold handoff.
+        // refreshDisplayedAngle() expires it after 3 seconds, so stale values never
+        // masquerade as live sensor data if the Activity stays in the background.
         super.onStop()
     }
 
@@ -127,6 +131,7 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
         val value = event.values[0]
         if (FlipTransitionPolicy.isValidAngle(value)) {
             publicAngle = value
+            publicReceivedAtNs = SystemClock.elapsedRealtimeNanos()
             refreshDisplayedAngle()
         }
     }
@@ -135,15 +140,19 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
 
     private fun refreshDisplayedAngle() {
         val now = SystemClock.elapsedRealtimeNanos()
-        val halFresh = samsungReceivedAtNs > 0L &&
-            now >= samsungReceivedAtNs && now - samsungReceivedAtNs <= 3_000_000_000L
+        val halFresh = FlipTransitionPolicy.isFreshSample(
+            samsungReceivedAtNs, now, 3_000_000_000L
+        )
+        val publicFresh = FlipTransitionPolicy.isFreshSample(
+            publicReceivedAtNs, now, 3_000_000_000L
+        )
         val estimate = if (halFresh) samsungEstimator.estimate(now) else Float.NaN
         when {
-            FlipTransitionPolicy.isValidAngle(estimate) -> {
+            halFresh && FlipTransitionPolicy.isValidAngle(estimate) -> {
                 displayedAngle = estimate
                 displayedSource = getString(R.string.flip_studio_hal, samsungSourceName)
             }
-            FlipTransitionPolicy.isValidAngle(publicAngle) -> {
+            publicFresh && FlipTransitionPolicy.isValidAngle(publicAngle) -> {
                 displayedAngle = publicAngle
                 displayedSource = getString(R.string.flip_studio_public)
             }
