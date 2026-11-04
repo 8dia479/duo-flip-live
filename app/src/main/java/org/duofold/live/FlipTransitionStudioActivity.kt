@@ -6,6 +6,9 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.View
+import android.view.WindowManager
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -46,6 +49,8 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        enterImmersivePreview()
         sensorManager = getSystemService(SensorManager::class.java)
         hingeSensor = sensorManager.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
         sensorStatus = getString(R.string.flip_studio_waiting)
@@ -62,6 +67,29 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
             onDiagnostics = { /* Raw HAL logs are available in the dedicated preview screen. */ }
         )
         setContent { DuoTheme { StudioContent() } }
+    }
+
+    private fun enterImmersivePreview() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { controller ->
+                controller.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
+                controller.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersivePreview()
     }
 
     override fun onStart() {
@@ -130,7 +158,7 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
     private fun StudioContent() {
         val prefs = remember { getSharedPreferences("flip_preview", MODE_PRIVATE) }
         // Open directly into a usable manual preview; live sensor input is optional.
-        var manualMode by rememberSaveable { mutableStateOf(true) }
+        var manualMode by rememberSaveable { mutableStateOf(false) }
         var manualAngle by rememberSaveable { mutableFloatStateOf(90f) }
         var demoRunning by rememberSaveable { mutableStateOf(false) }
         val demoAngle = remember { Animatable(90f) }
@@ -162,9 +190,9 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
         }
         Surface(Modifier.fillMaxSize()) {
             Column(
-                Modifier.fillMaxSize().safeDrawingPadding()
+                Modifier.fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -262,7 +290,7 @@ private fun TransitionPreview(angle: Float, style: String) {
             Text("전환 진행률 ${(progress * 100f).toInt()}%",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
-            Row(Modifier.fillMaxWidth().height(190.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Row(Modifier.fillMaxWidth().height(320.dp), horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.Bottom) {
                 ScreenMock(
                     title = stringResource(R.string.flip_studio_cover),
