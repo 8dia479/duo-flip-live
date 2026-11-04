@@ -193,8 +193,31 @@ class SetupActivity : ComponentActivity() {
         OutlinedButton(onClick={open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))}){Text("Open app info")}
         OutlinedButton(onClick={if(checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),75)}){Text("Allow service notifications")}
         Text("Default: Windowed Glass, inspired by iPhone Duo with even more windowed glass. Choose styles in Folding animation styles. Keep-awake is optional; choose it in Privacy & controls.")
+        Text("Activation checklist",style=MaterialTheme.typography.titleMedium)
+        Text((if(prefs.getBoolean("wallpaper_verified",false))"✓" else "○")+" Samsung fold wallpaper configured")
+        Text((if(consent)"✓" else "○")+" Privacy consent accepted")
+        Text((if(overlay)"✓" else "○")+" Display over other apps")
+        Text((if(accessibility)"✓" else "○")+" Duo accessibility service connected")
+        Text((if(PrivilegedAccess.rootSelected()||authorized)"✓" else "○")+" Shizuku authorization or root access")
         Button(onClick={
-         if(!authorized){message="Authorize your selected connection before finishing.";attempted=false;go(2);return@Button}
+         if(!prefs.getBoolean("wallpaper_verified",false)){
+          attempted=false;message="The required fold wallpaper is not configured yet. Complete that step first.";go(2);return@Button
+         }
+         if(!PrivilegedAccess.rootSelected()&&!authorized){
+          attempted=false;message="Connect and authorize Shizuku, or select an available root connection.";go(2);return@Button
+         }
+         if(!consent){
+          message="Review and accept both privacy disclosures to enable the animation."
+          startActivity(Intent(this@SetupActivity,PrivacyActivity::class.java));return@Button
+         }
+         if(!overlay){
+          message="Allow Duo to display over other apps, then return here."
+          open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")));return@Button
+         }
+         if(!accessibility){
+          message="Enable Duo Fold Live in Android Accessibility settings, then return here."
+          open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));return@Button
+         }
          prefs.edit().putInt("state",2).commit()
          getSharedPreferences("standalone",0).edit().putBoolean("enabled",true).apply()
          startForegroundService(Intent(this@SetupActivity,FoldBackgroundService::class.java))
@@ -202,7 +225,7 @@ class SetupActivity : ComponentActivity() {
          startActivity(Intent(this@SetupActivity,MainActivity::class.java))
          if(custom&&hasPhoto)startActivity(Intent(this@SetupActivity,org.duofold.live.wallpaperlayer.WallpaperActivity::class.java).putExtra("auto_enable",true))
          finish()
-        },enabled=consent&&overlay&&accessibility&&prefs.getBoolean("wallpaper_verified",false)){Text("Finish & enable animation")}
+        }){Text("Finish & enable animation")}
        }
       }
       if(message.isNotBlank())Text(message,style=MaterialTheme.typography.bodySmall)
