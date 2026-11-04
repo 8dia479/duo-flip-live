@@ -3,7 +3,9 @@ package org.duofold.live;
 final class HandoffFadePolicy {
  static final long REVEAL_MS=180,READY_TIMEOUT_MS=900,ON_SETTLE_MS=32;
  static final int UI_DRAW=0,GLASS_COMMITTED=1,ENDPOINT_COMMITTED=2;
- static final long COMMIT_SETTLE_MS=2;
+ // A compositor commit is not a panel-present signal. Keep the mask for
+ // one 60 Hz frame (about two 120 Hz frames) before revealing committed content.
+ static final long COMMIT_SETTLE_MS=16;
  private boolean requireInnerGlass;
  private float openThreshold=172;
  private float handoff=HandoffSettings.DEFAULT;

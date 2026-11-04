@@ -18,13 +18,13 @@ public class InnerRevealReadinessTest {
   assertEquals(1,p.opacity(800,true,100,true,true,799,true),0);
   assertTrue(p.readiness.startsWith("waiting"));
  }
- @Test public void freshCaptureAndCommitAllowTwoMsSettle(){
+ @Test public void freshCaptureAndCommitWaitForPostCommitFrame(){
   HandoffFadePolicy p=start();
   assertEquals(1,glass(p,25,25,22),0);
-  assertEquals(1,glass(p,26,25,22),0);
-  assertEquals(1,glass(p,27,25,22),0); // fade starts at zero progress
-  assertEquals(.5f,glass(p,117,25,22),.001);
-  assertEquals(0,glass(p,207,25,22),0);
+  assertEquals(1,glass(p,40,25,22),0); // 15 ms is not enough to trust a commit.
+  assertEquals(1,glass(p,41,25,22),0); // the reveal starts only after the 16 ms settle.
+  assertEquals(.5f,glass(p,131,25,22),.001);
+  assertEquals(0,glass(p,221,25,22),0);
   assertEquals("fresh content capture + glass frame committed",p.readiness);
  }
  @Test public void preOnCaptureCannotPassWithNewCommit(){
@@ -44,8 +44,9 @@ public class InnerRevealReadinessTest {
   assertEquals(1,p.opacity(40,true,178,true,true,39,true),0);
   assertEquals(1,p.opacity(45,true,171,true,true,44,true,HandoffFadePolicy.ENDPOINT_COMMITTED,-1),0);
   assertEquals(1,p.opacity(50,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),0);
-  assertEquals(1,p.opacity(52,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),0);
-  assertEquals(.5f,p.opacity(142,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),.001);
+  assertEquals(1,p.opacity(65,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),0);
+  assertEquals(1,p.opacity(66,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),0);
+  assertEquals(.5f,p.opacity(156,true,178,true,true,50,true,HandoffFadePolicy.ENDPOINT_COMMITTED,30),.001);
  }
  @Test public void clearWithoutPostOnContentNeverCountsAsReadiness(){
   HandoffFadePolicy p=start();
@@ -61,7 +62,9 @@ public class InnerRevealReadinessTest {
   assertEquals(1,glass(p,50,49,22),0);
   assertEquals(1,glass(p,60,59,45),0);
   assertEquals(1,glass(p,61,59,45),0);
-  assertEquals(.5f,glass(p,151,59,45),.001);
+  assertEquals(1,glass(p,74,59,45),0);
+  assertEquals(1,glass(p,75,59,45),0);
+  assertEquals(.5f,glass(p,165,59,45),.001);
  }
  @Test public void emergencyTimeoutIsExplicitlyUnconfirmed(){
   HandoffFadePolicy p=start();

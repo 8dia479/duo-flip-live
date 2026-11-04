@@ -114,7 +114,7 @@ final class HandoffFade {
     }
     if(changed)t.apply();
    }
-   if(now>=statusAt){statusAt=now+250;status="Handoff fade: "+Math.round(alpha*100)+"%; primary="+(inner?"inner":"cover")+"; "+(policy.transitioning()?"destination black/reveal":"angle fade")+"; "+policy.readiness+"; glass commit settle 2 ms; legacy ON settle 32 ms; reveal "+FadeSettings.reveal(gradualness)+" ms";}
+   if(now>=statusAt){statusAt=now+250;status="Handoff fade: "+Math.round(alpha*100)+"%; primary="+(inner?"inner":"cover")+"; "+(policy.transitioning()?"destination black/reveal":"angle fade")+"; "+policy.readiness+"; glass commit settle "+HandoffFadePolicy.COMMIT_SETTLE_MS+" ms; legacy ON settle 32 ms; reveal "+FadeSettings.reveal(gradualness)+" ms";}
    schedule();
   }catch(Exception e){clear();status="Handoff fade unavailable: "+e.getClass().getSimpleName()+": "+e.getMessage();}
  }};
