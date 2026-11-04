@@ -206,10 +206,6 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   val samsungFresh = samsungAge in 0L..3_000_000_000L
   val samsungEstimate = if (samsungFresh) samsungEstimator.estimate(frameNow) else Float.NaN
   val displayAngle = if (samsungEstimate.isFinite()) samsungEstimate else angle
-  var previewPanel by remember { mutableIntStateOf(FlipPreviewPolicy.COVER_PANEL) }
-  LaunchedEffect(displayAngle) {
-   previewPanel = FlipPreviewPolicy.nextPanel(previewPanel, displayAngle)
-  }
   var sensitivity by remember { mutableFloatStateOf(prefs.getFloat("sensitivity", 1f).let { if (it.isFinite()) it.coerceIn(.1f, 5f) else 1f }) }
   var deadband by remember { mutableFloatStateOf(prefs.getFloat("deadband", 0f).let { if (it.isFinite()) it.coerceIn(0f, 3f) else 0f }) }
   var fold by remember { mutableStateOf(prefs.getBoolean("fold", true)) }
@@ -266,26 +262,13 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
        style = MaterialTheme.typography.bodySmall,
        color = MaterialTheme.colorScheme.onSurfaceVariant
       )
-      Text(
-       if (previewPanel == FlipPreviewPolicy.MAIN_PANEL)
-        "메인 디스플레이 · ${HandoffSettings.DEFAULT.toInt()}°에서 즉시 전환"
-       else
-        "커버 디스플레이 · ${HandoffSettings.DEFAULT.toInt()}°까지 유지",
-       style = MaterialTheme.typography.titleSmall,
-       color = MaterialTheme.colorScheme.secondary
-      )
-      Text(
-       "닫힐 때는 ${HandoffSettings.closing(HandoffSettings.DEFAULT).toInt()}° 이하에서 커버 화면으로 복귀합니다.",
-       style = MaterialTheme.typography.bodySmall,
-       color = MaterialTheme.colorScheme.onSurfaceVariant
-      )
       AndroidView(
        factory = { FrostSurface(it, preview = true, previewFlip = true) },
        modifier = Modifier.fillMaxWidth().height(320.dp),
        update = { view ->
         val naturalRotation = display?.rotation ?: 0
         val topDownRotation = (FlipPreviewPolicy.shaderRotation(naturalRotation) + 2) % 4
-        val progress = if (previewPanel == FlipPreviewPolicy.MAIN_PANEL) 0f else 1f
+        val progress = if (displayAngle.isFinite()) DuoShadeCurve.progress(displayAngle, true) else 0f
         view.configure(
          transitionPreviewFrame,
          progress,
