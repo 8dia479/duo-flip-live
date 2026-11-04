@@ -67,6 +67,7 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
     private var foldingFeatureSummary by mutableStateOf("")
     private var configurationChanges by mutableIntStateOf(0)
     private var displayEvents by mutableIntStateOf(0)
+    private var lastDisplayId = -1
     private val eventLog = mutableStateListOf<String>()
     private var layoutJob: Job? = null
 
@@ -105,7 +106,7 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
         )
 
         refreshDisplaySnapshot()
-        appendEvent("ACTIVITY_CREATED", displaySnapshot)
+        appendEvent("ACTIVITY_CREATED", "savedState=${savedInstanceState != null}; $displaySnapshot")
         setContent { DuoTheme { ContinuityScreen() } }
     }
 
@@ -152,7 +153,28 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
 
     override fun onResume() {
         super.onResume()
+        refreshDisplaySnapshot()
+        appendEvent("ACTIVITY_RESUMED", displaySnapshot)
         samsungSource?.start()
+    }
+
+    override fun onPause() {
+        appendEvent("ACTIVITY_PAUSED", displaySnapshot)
+        super.onPause()
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        appendEvent("ACTIVITY_RESTARTED", displaySnapshot)
+    }
+
+    override fun onMultiWindowModeChanged(
+        isInMultiWindowMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        refreshDisplaySnapshot()
+        appendEvent("MULTI_WINDOW_MODE_CHANGED", "active=$isInMultiWindowMode; $displaySnapshot")
     }
 
     override fun onStop() {
@@ -195,6 +217,11 @@ class FlipOneUiContinuityActivity : ComponentActivity(), SensorEventListener,
         val current = window.decorView.display
             ?: displayManager.getDisplay(Display.DEFAULT_DISPLAY)
         val mode = current?.mode
+        val currentDisplayId = current?.displayId ?: -1
+        if (lastDisplayId >= 0 && currentDisplayId != lastDisplayId) {
+            appendEvent("DISPLAY_CONTEXT_CHANGED", "from=$lastDisplayId; to=$currentDisplayId")
+        }
+        lastDisplayId = currentDisplayId
         val bounds = runCatching { windowManager.currentWindowMetrics.bounds }.getOrNull()
         val panel = if (mode == null) FlipDiagnostics.Panel.UNKNOWN
             else FlipDiagnostics.panelCandidate(mode.physicalWidth, mode.physicalHeight)
