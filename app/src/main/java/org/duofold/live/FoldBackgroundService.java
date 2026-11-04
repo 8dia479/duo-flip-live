@@ -20,9 +20,9 @@ public class FoldBackgroundService extends Service {
  private final rikka.shizuku.Shizuku.OnBinderDeadListener binderDead=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder death notification");resetHelpers("Shizuku disconnected");kick();});
  private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()))clearEffect();else nextReaderAttempt=0;if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();}};
  private final android.database.ContentObserver foldSettingObserver=new android.database.ContentObserver(main){
-  @Override public void onChange(boolean selfChange){FoldAwakeDefault.reconnect();kick();}
+  @Override public void onChange(boolean selfChange){if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();}
  };
- private final Shizuku.OnRequestPermissionResultListener permissionResult=(requestCode,grantResult)->main.post(()->{if(PrivilegedAccess.rootSelected())return;FoldAwakeDefault.reconnect();kick();});
+ private final Shizuku.OnRequestPermissionResultListener permissionResult=(requestCode,grantResult)->main.post(()->{if(PrivilegedAccess.rootSelected())return;if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();});
  private void stopFlip6Runtime(String reason){
   if(flip6Runtime!=null){flip6Runtime.stop(reason);flip6Runtime=null;}
   else {LiveAngles.setExternalCaptureBinder(null);LiveAngles.clearExternalAngle(reason);}
