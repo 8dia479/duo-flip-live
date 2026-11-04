@@ -9,6 +9,8 @@ public class FoldBackgroundService extends Service {
  private final Handler main=new Handler(Looper.getMainLooper());
  private boolean wanted(){return RuntimeControls.wanted(this);}
  private LiveAngles angles;
+ private Flip6LiveRuntime flip6Runtime;
+ private long nextFlip6ReaderAttempt;
  private FoldAwakeGuard awakeGuard;
  private ClosureDiagnostics closureDiagnostics;
  private long asleepSince=-1,nextReaderAttempt;
@@ -16,13 +18,18 @@ public class FoldBackgroundService extends Service {
  private boolean lastReachable=false;
  private final rikka.shizuku.Shizuku.OnBinderReceivedListener binderReady=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder received");resetHelpers("Shizuku connection refreshed");kick();});
  private final rikka.shizuku.Shizuku.OnBinderDeadListener binderDead=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder death notification");resetHelpers("Shizuku disconnected");kick();});
- private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()))clearEffect();else nextReaderAttempt=0;FoldAwakeDefault.reconnect();kick();}};
+ private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()))clearEffect();else nextReaderAttempt=0;if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();}};
  private final android.database.ContentObserver foldSettingObserver=new android.database.ContentObserver(main){
   @Override public void onChange(boolean selfChange){FoldAwakeDefault.reconnect();kick();}
  };
  private final Shizuku.OnRequestPermissionResultListener permissionResult=(requestCode,grantResult)->main.post(()->{if(PrivilegedAccess.rootSelected())return;FoldAwakeDefault.reconnect();kick();});
+ private void stopFlip6Runtime(String reason){
+  if(flip6Runtime!=null){flip6Runtime.stop(reason);flip6Runtime=null;}
+  else {LiveAngles.setExternalCaptureBinder(null);LiveAngles.clearExternalAngle(reason);}
+ }
  private void resetHelpers(String reason){
   clearEffect();
+  if(DeviceCompatibility.isFlip6(Build.MODEL)){stopFlip6Runtime(reason);nextFlip6ReaderAttempt=0;return;}
   if(angles!=null){angles.stop();angles=null;}
   HelperBinding.reset(reason);nextReaderAttempt=0;
   org.duofold.live.wallpaperlayer.WallpaperRestore.reconnect();
@@ -38,10 +45,11 @@ public class FoldBackgroundService extends Service {
  }
  public IBinder onBind(Intent i){return null;}
  public void onCreate(){super.onCreate();RecoveryLog.init(this);RecoveryLog.add("Background service created, PID "+android.os.Process.myPid());
-  closureDiagnostics=new ClosureDiagnostics(this,main);
-  FoldAwakeDefault.persist(this);awakeGuard=new FoldAwakeGuard(this);awakeGuard.start();
+  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
+  closureDiagnostics=flip6?null:new ClosureDiagnostics(this,main);
+  if(!flip6){FoldAwakeDefault.persist(this);awakeGuard=new FoldAwakeGuard(this);awakeGuard.start();}
   Shizuku.addBinderReceivedListenerSticky(binderReady);Shizuku.addBinderDeadListener(binderDead);Shizuku.addRequestPermissionResultListener(permissionResult);
-  try{getContentResolver().registerContentObserver(android.provider.Settings.System.getUriFor("fold_lock_behavior"),false,foldSettingObserver);}catch(Exception e){RecoveryLog.add("Fold setting observer unavailable; periodic verification active");}
+  if(!flip6)try{getContentResolver().registerContentObserver(android.provider.Settings.System.getUriFor("fold_lock_behavior"),false,foldSettingObserver);}catch(Exception e){RecoveryLog.add("Fold setting observer unavailable; periodic verification active");}
   IntentFilter filter=new IntentFilter();filter.addAction(Intent.ACTION_SCREEN_ON);filter.addAction(Intent.ACTION_SCREEN_OFF);filter.addAction(Intent.ACTION_USER_PRESENT);registerReceiver(screen,filter,Context.RECEIVER_NOT_EXPORTED);
 createNotificationChannel(this);}
  public static void createNotificationChannel(Context context){
@@ -76,11 +84,13 @@ createNotificationChannel(this);}
   // Ignore transient screen-off during a panel handoff; suspend sustained sleep.
   if(!interactive&&now-asleepSince>=3000){
    if(angles!=null){angles.stop();angles=null;RecoveryLog.add("Reader suspended for screen-off");}
+   if(DeviceCompatibility.isFlip6(Build.MODEL)&&flip6Runtime!=null)stopFlip6Runtime("Screen asleep — Flip 6 reader suspended");
    LiveAngles.status="Screen asleep — reader suspended";
    main.postDelayed(this,30000);return;
   }
-  if(interactive)org.duofold.live.wallpaperlayer.WallpaperRestore.tick(FoldBackgroundService.this);
-  if(RotationMigration.needed(FoldBackgroundService.this)){
+  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
+  if(interactive&&!flip6)org.duofold.live.wallpaperlayer.WallpaperRestore.tick(FoldBackgroundService.this);
+  if(!flip6&&RotationMigration.needed(FoldBackgroundService.this)){
    if(angles!=null){angles.stop();angles=null;}
    clearEffect();nextReaderAttempt=0;
    if(interactive&&!getSystemService(KeyguardManager.class).isKeyguardLocked())RotationMigration.tick(FoldBackgroundService.this);
@@ -90,7 +100,15 @@ createNotificationChannel(this);}
   }
   boolean foldEnabled=getSharedPreferences("standalone",0).getBoolean("enabled",false);
   try{
-   if(!foldEnabled){if(angles!=null){angles.stop();angles=null;}LiveAngles.status="Fold animation disabled";}else{
+   if(!foldEnabled){if(angles!=null){angles.stop();angles=null;}if(flip6)stopFlip6Runtime("Fold animation disabled");LiveAngles.status="Fold animation disabled";}
+   else if(flip6){
+    if(now>=nextFlip6ReaderAttempt&&(flip6Runtime==null||!LiveAngles.fresh())){
+     if(flip6Runtime!=null)stopFlip6Runtime("Reconnecting to Flip 6 hinge sensor");
+     nextFlip6ReaderAttempt=now+8000L;
+     flip6Runtime=new Flip6LiveRuntime(FoldBackgroundService.this);
+     flip6Runtime.start();
+    }
+   }else{
    boolean reachable=PrivilegedAccess.pingBinder();
    if(reachable!=lastReachable){lastReachable=reachable;RecoveryLog.add("Privileged connection reachability="+reachable);}
    if(!reachable){
@@ -107,13 +125,12 @@ createNotificationChannel(this);}
    }
    }
   }catch(Exception e){LiveAngles.status="Waiting for privileged access: "+e.getClass().getSimpleName();}
-  FoldAwakeDefault.tick(FoldBackgroundService.this);
-  InnerDecorRecovery.tick(FoldBackgroundService.this);
-  String notice=!foldEnabled?FoldAwakeDefault.status:LiveAngles.fresh()?"Live hinge control active":LiveAngles.status;
+  if(!flip6){FoldAwakeDefault.tick(FoldBackgroundService.this);InnerDecorRecovery.tick(FoldBackgroundService.this);}
+  String notice=!foldEnabled?"Fold animation disabled":LiveAngles.fresh()?(flip6?"Flip 6 hinge animation active":"Live hinge control active"):LiveAngles.status;
   if(!notice.equals(lastNotice)){lastNotice=notice;getSystemService(NotificationManager.class).notify(112,notification(notice));}
   SupportPrompts.tick(FoldBackgroundService.this);
   main.postDelayed(this,2000);
  }};
  public void onTaskRemoved(Intent intent){RecoveryLog.add("Settings task dismissed; background service remains running");super.onTaskRemoved(intent);}
- public void onDestroy(){if(closureDiagnostics!=null)closureDiagnostics.close();if(awakeGuard!=null)awakeGuard.close();RecoveryLog.add("Background service destroyed");Shizuku.removeBinderReceivedListener(binderReady);Shizuku.removeBinderDeadListener(binderDead);Shizuku.removeRequestPermissionResultListener(permissionResult);getContentResolver().unregisterContentObserver(foldSettingObserver);try{unregisterReceiver(screen);}catch(Exception ignored){}running=false;main.removeCallbacksAndMessages(null);if(angles!=null){angles.stop();angles=null;}stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy();}
+ public void onDestroy(){if(closureDiagnostics!=null)closureDiagnostics.close();if(awakeGuard!=null)awakeGuard.close();if(flip6Runtime!=null)stopFlip6Runtime("Flip 6 runtime stopped");RecoveryLog.add("Background service destroyed");Shizuku.removeBinderReceivedListener(binderReady);Shizuku.removeBinderDeadListener(binderDead);Shizuku.removeRequestPermissionResultListener(permissionResult);getContentResolver().unregisterContentObserver(foldSettingObserver);try{unregisterReceiver(screen);}catch(Exception ignored){}running=false;main.removeCallbacksAndMessages(null);if(angles!=null){angles.stop();angles=null;}stopForeground(STOP_FOREGROUND_REMOVE);super.onDestroy();}
 }

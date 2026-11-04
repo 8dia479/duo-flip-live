@@ -19,6 +19,7 @@ internal class FlipSamsungAngleSource(
     private val onReading: (Reading) -> Unit,
     private val onStatus: (String) -> Unit,
     private val onDiagnostics: (String) -> Unit,
+    private val onCaptureBinder: (IBinder) -> Unit = {},
 ) {
     data class Reading(
         val angle: Float,
@@ -70,8 +71,10 @@ internal class FlipSamsungAngleSource(
             ensureWorker()
             worker?.post {
                 val started = transact(FlipSensorHalReader.CMD_START) != null
+                val capture = if (started) requestCaptureBinder() else null
                 main.post {
                     if (!active) return@post
+                    if (capture != null) onCaptureBinder(capture)
                     onStatus(appContext.getString(
                         if (started) R.string.flip_hal_waiting else R.string.flip_hal_start_failed
                     ))
@@ -206,6 +209,24 @@ internal class FlipSamsungAngleSource(
         thread.start()
         workerThread = thread
         worker = Handler(thread.looper)
+    }
+
+    private fun requestCaptureBinder(): IBinder? {
+        val remote = binder ?: return null
+        val data = Parcel.obtain()
+        val reply = Parcel.obtain()
+        return try {
+            data.writeInterfaceToken(FlipSensorHalReader.DESCRIPTOR)
+            if (!remote.transact(FlipSensorHalReader.CMD_CAPTURE_BINDER, data, reply, 0)) return null
+            reply.readException()
+            reply.readStrongBinder()
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not obtain capture-only binder", error)
+            null
+        } finally {
+            data.recycle()
+            reply.recycle()
+        }
     }
 
     private fun transact(code: Int): Bundle? {

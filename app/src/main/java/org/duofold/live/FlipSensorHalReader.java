@@ -19,6 +19,7 @@ public final class FlipSensorHalReader extends Binder {
     public static final int CMD_START = 1;
     public static final int CMD_READ = 2;
     public static final int CMD_STOP = 3;
+    public static final int CMD_CAPTURE_BINDER = 4;
     private static final int SHIZUKU_DESTROY = 16777115;
 
     private int ownerUid = -1;
@@ -35,6 +36,7 @@ public final class FlipSensorHalReader extends Binder {
     private volatile String lastLine = "";
     private static final int MAX_DIAGNOSTIC_LINES = 20;
     private final ArrayDeque<String> recentLines = new ArrayDeque<>();
+    private GlassCapture capture;
 
     public FlipSensorHalReader() {
         attachInterface(null, DESCRIPTOR);
@@ -57,6 +59,12 @@ public final class FlipSensorHalReader extends Binder {
         if (ownerUid < 0) ownerUid = caller;
         if (caller != ownerUid) throw new SecurityException("Wrong caller UID");
 
+        if (code == CMD_CAPTURE_BINDER) {
+            if (capture == null) capture = new GlassCapture(caller);
+            reply.writeNoException();
+            reply.writeStrongBinder(capture);
+            return true;
+        }
         if (code == CMD_START) {
             startReader();
             reply.writeNoException();
@@ -189,6 +197,7 @@ public final class FlipSensorHalReader extends Binder {
         java.lang.Process child = process;
         process = null;
         if (child != null) child.destroy();
+        if (capture != null) { capture.close(); capture = null; }
         state = "stopped";
     }
 }

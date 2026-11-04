@@ -26,6 +26,7 @@ public final class LiveAngles {
  public static String mirrorStatus="Inner live mirror idle";
  public static boolean nativeInner=false,continuityNative=false;
  private static volatile LiveAngles current;
+ private static volatile IBinder externalCapture;
  private static int mirrorSerial;
  public interface MirrorCallback {void ready(boolean ok,String status);}
  public static int attachMirror(SurfaceControl parent,int width,int height,MirrorCallback callback){
@@ -48,7 +49,21 @@ public final class LiveAngles {
   LiveAngles self=current;IBinder binder=self==null?null:self.reader;
   if(binder==null || !binder.transact(code,p,r,0))throw new IllegalStateException("Preview helper unavailable");
  }
+ public static void setExternalCaptureBinder(IBinder binder){externalCapture=binder;}
+ public static void publishExternalAngle(float value){
+  if(!Float.isFinite(value)||value<0f||value>180f)return;
+  long stamp=SystemClock.elapsedRealtime();angle=value;last=stamp;effectAllowed=true;
+  status=String.format(Locale.US,"Flip 6 hinge live · %.1f°",value);
+  for(Listener l:new ArrayList<>(listeners))l.angle(value,stamp*1000000L);
+ }
+ public static void clearExternalAngle(String message){
+  angle=Float.NaN;last=0;effectAllowed=true;status=message;
+  long stamp=SystemClock.elapsedRealtimeNanos();
+  for(Listener l:new ArrayList<>(listeners))l.angle(Float.NaN,stamp);
+ }
  public static IBinder captureBinder()throws Exception{
+  IBinder provided=externalCapture;
+  if(provided!=null&&provided.isBinderAlive())return provided;
   LiveAngles self=current;IBinder remote=self==null?null:self.reader;
   if(remote==null)throw new IllegalStateException("Shizuku reader unavailable");
   Parcel p=Parcel.obtain(),r=Parcel.obtain();try{p.writeInterfaceToken(AngleReader.DESCRIPTOR);remote.transact(6,p,r,0);r.readException();return r.readStrongBinder();}finally{p.recycle();r.recycle();}

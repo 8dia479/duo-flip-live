@@ -208,7 +208,7 @@ internal object DuoGlassShader {
  }
  """.trimIndent()
 }
-@Composable internal fun DuoGlassSurface(angle:Float,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozenFrame:GlassFrame?=null,reflectedCover:Boolean=false,opaqueContent:Boolean=false,liveFrame:GlassFrame?=null){
+@Composable internal fun DuoGlassSurface(angle:Float,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozenFrame:GlassFrame?=null,reflectedCover:Boolean=false,opaqueContent:Boolean=false,liveFrame:GlassFrame?=null,flipMode:Boolean=false){
  // Incoming screenshot-mode content uses the same live SurfaceView as normal mode.
  // Outgoing content and the bounded incoming remap hold use a window-buffer composite.
  val frame=frozenFrame ?: liveFrame ?: GlassFrames.frame
@@ -219,11 +219,11 @@ internal object DuoGlassShader {
   AndroidView(factory={ScreenshotGlassView(it)},modifier=Modifier.fillMaxSize(),update={it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
   return
  }
- if(!reflectedCover && frozenFrame==null && liveFrame==null && !context.getSharedPreferences("standalone",0).getBoolean("dual",false)){
+ if(!flipMode && !reflectedCover && frozenFrame==null && liveFrame==null && !context.getSharedPreferences("standalone",0).getBoolean("dual",false)){
   AndroidView(factory={PreparedGlassHost(it)},modifier=Modifier.fillMaxSize(),update={it.configure(frame,amount,intensity,inner,rotation,angle)})
   return
  }
- AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover)},modifier=Modifier.fillMaxSize(),update={it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
+ AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover,previewFlip=flipMode)},modifier=Modifier.fillMaxSize(),update={it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
 }
 internal class FrostSurface(context:Context,private val preview:Boolean=false,private val reflectedCover:Boolean=false,private val previewFlip:Boolean=false):SurfaceView(context),SurfaceHolder.Callback {
  private val projectedBlur=ProjectedSystemGlassBlur(context)
@@ -296,7 +296,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
  private var lastReadyEndpoint=-1L
  /** Tie readiness to this SurfaceView's next buffer, not its parent UI draw. */
  private fun trackReadyFrame(rendered:GlassFrame?,endpoint:Boolean){
-  if(preparedStandby || preview || frozen || readinessPending)return
+  if(preparedStandby || preview || previewFlip || frozen || readinessPending)return
   if(!inner){
    if((!CoverStartupTrace.needsCommit() && !PreviewTransition.needsCoverCommit()) || reflectedCover || display?.displayId!=0 || rendered==null || rendered.stamp==lastReadyCapture || rendered.physicalId!=CoverBridge.identity(display) || rendered.width!=width || rendered.height!=height)return
    val gen=readinessGeneration;val episode=CoverStartupTrace.episode
@@ -394,12 +394,12 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   if(selected!=classic){classic=selected;bitmap=null;program=runCatching{RuntimeShader(if(classic)ClassicGlassShader.source else DuoGlassShader.source)}.getOrElse{RecoveryLog.add("Glass shader compilation failed: ${it.message}");null}}
   requestDraw()}
  override fun surfaceCreated(h:SurfaceHolder){
-  if(!preview)MotionGlass.add(motionListener)
+  if(!preview && !previewFlip)MotionGlass.add(motionListener)
   if(!preparedStandby && !preview && !reflectedCover && display?.displayId==0)HandoffStartupTrace.event("SURFACE_CREATED","view=${width}x${height}; inner=$inner")
   if(!preview){
    GlassFrames.surface(this,surfaceControl)
    if(!preparedStandby && !reflectedCover)GlassFrames.requestFreshCapture()
-   if(!reflectedCover && context.getSharedPreferences("standalone",0).getBoolean("cover_preview",true) && !context.getSharedPreferences("standalone",0).getBoolean("dual",false))PreviewTransition.markAnimation(surfaceControl)
+   if(!previewFlip && !reflectedCover && context.getSharedPreferences("standalone",0).getBoolean("cover_preview",true) && !context.getSharedPreferences("standalone",0).getBoolean("dual",false))PreviewTransition.markAnimation(surfaceControl)
    smoothingMs=FrameSmoothing.sanitize(context.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
   openThreshold=context.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
    if(!angleListening){angleListening=true;LiveAngles.add(angleListener)}
@@ -419,7 +419,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   }
   preferFastRefresh();requestDraw()
  }
- override fun surfaceDestroyed(h:SurfaceHolder){projectedBlur.clear();outputWidth=0;outputHeight=0;outputFormat=0;MotionGlass.remove(motionListener);if(!preparedStandby && !preview && !reflectedCover && display?.displayId==0)HandoffStartupTrace.event("SURFACE_DESTROYED","inner=$inner",false);removeCallbacks(clearGuard);paintedEffect=false;fallback("");readinessGeneration++;readinessPending=false;lastReadyCapture=-1;lastReadyEndpoint=-1;if(angleListening){LiveAngles.remove(angleListener);angleListening=false};targetAngle=Float.NaN;renderedAngle=Float.NaN;lastFrameNanos=0L;choreographer.removeFrameCallback(vsync);frameQueued=false;appliedRate=0f;if(!preview){PreviewTransition.forgetAnimation(surfaceControl);GlassFrames.surface(this,null)};bitmap=null;frame=null;paint.shader=null;aaNode.discardDisplayList();aaNode.setRenderEffect(null);edgeEffectKey=""}
+ override fun surfaceDestroyed(h:SurfaceHolder){projectedBlur.clear();outputWidth=0;outputHeight=0;outputFormat=0;if(!previewFlip)MotionGlass.remove(motionListener);if(!preparedStandby && !preview && !reflectedCover && display?.displayId==0)HandoffStartupTrace.event("SURFACE_DESTROYED","inner=$inner",false);removeCallbacks(clearGuard);paintedEffect=false;fallback("");readinessGeneration++;readinessPending=false;lastReadyCapture=-1;lastReadyEndpoint=-1;if(angleListening){LiveAngles.remove(angleListener);angleListening=false};targetAngle=Float.NaN;renderedAngle=Float.NaN;lastFrameNanos=0L;choreographer.removeFrameCallback(vsync);frameQueued=false;appliedRate=0f;if(!previewFlip){PreviewTransition.forgetAnimation(surfaceControl);GlassFrames.surface(this,null)};bitmap=null;frame=null;paint.shader=null;aaNode.discardDisplayList();aaNode.setRenderEffect(null);edgeEffectKey=""}
  /** Reuse the exact shader painter in a normal window View, without attaching this SurfaceView. */
  fun drawEmbedded(canvas:Canvas){drawFrame(canvas)}
  private fun drawFrame(windowCanvas:Canvas?=null){
@@ -499,7 +499,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
        shader.setInputShader("mip$i",map)
       }
      }
-     val fallback=inner && !(preview && previewFlip) && f.width.toFloat()/f.height<.7f
+     val fallback=inner && !previewFlip && f.width.toFloat()/f.height<.7f
      // Match the live cover mirror exactly so blur never jumps between two content crops.
      val projectedCover=!inner && minOf(f.width,f.height).toFloat()/maxOf(f.width,f.height)>.7f
      val fit=if(projectedCover)LiveMirrorLayout.fill(f.bitmap.width,f.bitmap.height,width,height) else null
@@ -524,7 +524,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      shader.setFloatUniform("texSize",f.bitmap.width.toFloat(),f.bitmap.height.toFloat())
      shader.setFloatUniform("origin",if(fallback)width-ew else 0f,if(fallback)(height-eh)/2f else 0f)
      shader.setFloatUniform("sampleScale",if(projectedCover)width/ew else 1f,if(projectedCover)height/eh else 1f)
-     if(!preview && !frozen)MotionGlass.offset(rotation,motionOffset,inner || reflectedCover) else {motionOffset[0]=0f;motionOffset[1]=0f}
+     if(!preview && !previewFlip && !frozen)MotionGlass.offset(rotation,motionOffset,inner || reflectedCover) else {motionOffset[0]=0f;motionOffset[1]=0f}
      shader.setFloatUniform("motionOffset",motionOffset[0],motionOffset[1])
      shader.setFloatUniform("sampleOffset",if(fit!=null)-fit[1]/ew else 0f,if(fit!=null)-fit[2]/eh else 0f)
      shader.setFloatUniform("extent",if(projectedCover)width.toFloat() else ew,if(projectedCover)height.toFloat() else eh);shader.setFloatUniform("progress",amount.coerceIn(0f,1f));shader.setFloatUniform("intensity",if(regionalCompositor)0f else if(classicPreset)maxOf(1.8f,intensity)*.7f else intensity)

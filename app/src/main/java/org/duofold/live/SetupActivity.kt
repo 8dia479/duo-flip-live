@@ -78,7 +78,8 @@ class SetupActivity : ComponentActivity() {
  private fun link(url:String)=open(Intent(Intent.ACTION_VIEW,Uri.parse(url)))
  override fun onCreate(savedInstanceState:Bundle?){
   super.onCreate(savedInstanceState)
-  stage=if(intent.getBooleanExtra("repair",false)) 2 else prefs.getInt("step",0)
+  val flip6=DeviceCompatibility.isFlip6(Build.MODEL)
+  stage=if(flip6)2 else if(intent.getBooleanExtra("repair",false)) 2 else prefs.getInt("step",0)
   Shizuku.addRequestPermissionResultListener(listener)
   setContent {
    DuoTheme{
@@ -94,7 +95,7 @@ class SetupActivity : ComponentActivity() {
     var usb by remember{mutableStateOf(false)}
     LaunchedEffect(Unit){while(true){
      shizuku=runCatching{PrivilegedAccess.pingBinder()}.getOrDefault(false)
-     authorized=shizuku && runCatching{PrivilegedAccess.checkSelfPermission()==PackageManager.PERMISSION_GRANTED}.getOrDefault(false)
+     authorized=shizuku && runCatching{if(flip6)Shizuku.checkSelfPermission()==PackageManager.PERMISSION_GRANTED else PrivilegedAccess.checkSelfPermission()==PackageManager.PERMISSION_GRANTED}.getOrDefault(false)
      overlay=Settings.canDrawOverlays(this@SetupActivity)
      accessibility=StandaloneService.instance!=null
      consent=RuntimeConsent.ready(this@SetupActivity)
@@ -122,7 +123,7 @@ class SetupActivity : ComponentActivity() {
       Text("Make the fold yours.",style=MaterialTheme.typography.headlineLarge)
       Text("Setup ${stage+1} of 4",style=MaterialTheme.typography.labelLarge)
       LinearProgressIndicator(progress={(stage+1)/4f},modifier=Modifier.fillMaxWidth())
-      if(!applying)DeviceProfileChoice{if(stage==3)go(2);message="Wallpaper profile selected. Apply required wallpapers to use it."}
+      if(!applying&&!flip6)DeviceProfileChoice{if(stage==3)go(2);message="Wallpaper profile selected. Apply required wallpapers to use it."}
       when(stage){
        0->{
         Text("The wallpaper that powers the fold",style=MaterialTheme.typography.headlineSmall)
@@ -145,13 +146,16 @@ class SetupActivity : ComponentActivity() {
         Button(onClick={message="";go(2)},enabled=!loading&&(!custom||hasPhoto)){Text("Continue to connection")}
        }
        2->{
-        Text("Connect privileged access",style=MaterialTheme.typography.headlineSmall)
-        Text("FoldInteractive is part of Samsung’s built-in wallpaper system, not a separate download. Duo needs its interactive fold wallpaper on both HOME screens. Other models may not contain a compatible profile.")
-        RootAccessControls()
+        Text(if(flip6)"Connect Shizuku for the Flip 6 hinge sensor" else "Connect privileged access",style=MaterialTheme.typography.headlineSmall)
+        if(!flip6){Text("FoldInteractive is part of Samsung’s built-in wallpaper system, not a separate download. Duo needs its interactive fold wallpaper on both HOME screens. Other models may not contain a compatible profile.");RootAccessControls()}
         val rootSelected=remember { mutableStateOf(PrivilegedAccess.rootSelected()) }
         LaunchedEffect(Unit){while(true){rootSelected.value=PrivilegedAccess.rootSelected();delay(500)}}
-        if(!rootSelected.value){
-        Text("Shizuku gives Duo the access needed to install the fold wallpaper on both screens and read live hinge angles. After authorization, tap Apply required wallpapers below. Wallpaper compatibility is checked separately.")
+        if(flip6&&rootSelected.value){
+         Text("Flip 6’s live sensor reader requires Shizuku. Root mode is not supported for this experimental path.")
+         OutlinedButton(onClick={PrivilegedAccess.useShizuku()}){Text("Switch to Shizuku")}
+        }
+        if(flip6||!rootSelected.value){
+        Text(if(flip6)"Shizuku reads the Flip 6 hinge directly and provides the capture-only helper. Your wallpapers remain unchanged; One UI continues to switch the physical screens." else "Shizuku gives Duo the access needed to install the fold wallpaper on both screens and read live hinge angles. After authorization, tap Apply required wallpapers below. Wallpaper compatibility is checked separately.")
         Text(if(authorized)"Shizuku connected and authorized" else if(shizuku)"Shizuku connected · authorization needed" else "Duo has not received a Shizuku connection")
         Button(onClick={link("https://github.com/thejaustin/ShizukuPlus/releases")}){Text("Download Shizuku+ (Recommended)")}
         Text("If you installed Shizuku, uninstall it first to avoid conflicts. Install Shizuku+ from the link above, start it using wireless or USB debugging (ADB mode), then authorize Duo again.",style=MaterialTheme.typography.bodySmall)
@@ -177,8 +181,8 @@ class SetupActivity : ComponentActivity() {
         }
         OutlinedButton(onClick={ShizukuAccess.copy(this@SetupActivity)}){Text("Copy connection report")}
         if(applying)CircularProgressIndicator()
-        if(!applying&&authorized&&prefs.getBoolean("wallpaper_verified",false))Button(onClick={go(3)}){Text("Continue") }
-        if(!applying&&authorized)Button(onClick={startApply()}){Text(if(attempted)"Retry wallpaper setup" else "Apply required wallpapers")}
+        if(!applying&&authorized&&(flip6||prefs.getBoolean("wallpaper_verified",false)))Button(onClick={go(3)}){Text("Continue") }
+        if(!flip6&&!applying&&authorized)Button(onClick={startApply()}){Text(if(attempted)"Retry wallpaper setup" else "Apply required wallpapers")}
         if(!rootSelected.value){
         Text("After reboot, start Shizuku again. Allow Shizuku and Duo to run in the background; keep Developer options enabled.",style=MaterialTheme.typography.bodySmall)
         TextButton(onClick={link("https://shizuku.rikka.app/guide/setup/")}){Text("Official Shizuku setup guide")}
@@ -187,7 +191,7 @@ class SetupActivity : ComponentActivity() {
        3->{
         OutlinedButton(onClick={open(Intent(this@SetupActivity,PrivacyActivity::class.java))}){Text("Review privacy & consent")}
         Text("Ready for the animation",style=MaterialTheme.typography.headlineSmall)
-        Text("The required Samsung fold wallpaper is configured on both home screens. Finish these Android permissions so the animation can run over other apps.")
+        Text(if(flip6)"Flip 6 uses Samsung’s hinge sensor directly. Duo does not replace your wallpaper or control One UI’s screen switching. Finish these Android permissions so the overlay can run." else "The required Samsung fold wallpaper is configured on both home screens. Finish these Android permissions so the animation can run over other apps.")
         OutlinedButton(onClick={open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,Uri.parse("package:$packageName")))}){Text(if(overlay)"Overlay access granted" else "Allow display over other apps")}
         OutlinedButton(onClick={open(Intent(this@SetupActivity,PrivacyActivity::class.java))}){Text(if(accessibility)"Accessibility connected" else "Enable Duo accessibility")}
         Text("1. Settings → Accessibility → Installed apps → Duo Fold Live: try enabling it. 2. If Restricted setting appears: Settings → Apps → Duo Fold Live → ⋮ → Allow restricted settings; confirm. 3. Return to Accessibility and enable Duo. If the ⋮ menu is missing, report the exact warning and your Android/One UI version. Overlay permission is separate. Enable accessibility only if you trust the app.",style=MaterialTheme.typography.bodySmall)
@@ -201,9 +205,9 @@ class SetupActivity : ComponentActivity() {
          startForegroundService(Intent(this@SetupActivity,FoldBackgroundService::class.java))
          StandaloneService.instance?.restart()
          startActivity(Intent(this@SetupActivity,FlipHomeActivity::class.java))
-         if(custom&&hasPhoto)startActivity(Intent(this@SetupActivity,org.duofold.live.wallpaperlayer.WallpaperActivity::class.java).putExtra("auto_enable",true))
+         if(!flip6&&custom&&hasPhoto)startActivity(Intent(this@SetupActivity,org.duofold.live.wallpaperlayer.WallpaperActivity::class.java).putExtra("auto_enable",true))
          finish()
-        },enabled=consent&&overlay&&accessibility&&prefs.getBoolean("wallpaper_verified",false)){Text("Finish & enable animation")}
+        },enabled=consent&&overlay&&accessibility&&(flip6||prefs.getBoolean("wallpaper_verified",false))){Text("Finish & enable animation")}
        }
       }
       if(message.isNotBlank())Text(message,style=MaterialTheme.typography.bodySmall)

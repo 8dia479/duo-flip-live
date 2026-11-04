@@ -20,7 +20,7 @@ import kotlin.math.exp
 
 /** Screenshot-free reference darkening over the live wallpaper and apps; no blur or 3D projection. */
 @Composable
-internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel: Boolean? = null, frozenFrame:GlassFrame? = null, reflectedCover:Boolean = false, opaqueContent:Boolean = false, liveFrame:GlassFrame? = null) {
+internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel: Boolean? = null, frozenFrame:GlassFrame? = null, reflectedCover:Boolean = false, opaqueContent:Boolean = false, liveFrame:GlassFrame? = null, flipMode:Boolean = false) {
     var angle by remember { mutableFloatStateOf(Float.NaN) }
     var visualAngle by remember { mutableFloatStateOf(Float.NaN) }
     var amount by remember { mutableFloatStateOf(0f) }
@@ -31,7 +31,8 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     val handoff=HandoffSettings.angle(plainPrefs.getFloat("handoff_angle",HandoffSettings.DEFAULT))
     val openThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
     val smoothingMs=FrameSmoothing.sanitize(LocalContext.current.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
-    val rotation=LocalView.current.display?.rotation ?: Surface.ROTATION_0
+    val displayRotation=LocalView.current.display?.rotation ?: Surface.ROTATION_0
+    val rotation=if(flipMode)FlipPreviewPolicy.shaderRotation(displayRotation) else displayRotation
     val hinge=LocalHinge.current
     val latestExpanded by rememberUpdatedState(expanded)
     val lifecycle=LocalLifecycleOwner.current.lifecycle
@@ -49,7 +50,7 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
                 val dt=if(previous==0L)8.33f else ((now-previous)/1_000_000f).coerceIn(1f,50f)
                 previous=now
                 visualAngle=FrameSmoothing.step(visualAngle,angle,dt,smoothingMs)
-                amount=if(latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
+                amount=if(!flipMode && latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
                   else if(latestExpanded && angle>=FoldThreshold.sanitize(openThreshold))0f
                   else if(plain)PlainFadeCurve.progress(visualAngle,latestExpanded,openThreshold,handoff)
                   else DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
@@ -59,7 +60,7 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     SideEffect { host.onFrame(amount>.003f,amount) }
     val fadePrefs=LocalContext.current.getSharedPreferences("standalone",0)
     val debug=AnimationModePolicy.blackFade(fadePrefs.getString("animation_mode",AnimationModePolicy.DEFAULT),fadePrefs.getBoolean("debug_mode",false))
-    if(!debug || (liveFrame!=null && IncomingGhostDiagnostic.mode!=0)){DuoGlassSurface(visualAngle,amount,intensity,expanded,rotation,frozenFrame,reflectedCover,opaqueContent,liveFrame);return}
+    if(!debug || (liveFrame!=null && IncomingGhostDiagnostic.mode!=0)){DuoGlassSurface(visualAngle,amount,intensity,expanded,rotation,frozenFrame,reflectedCover,opaqueContent,liveFrame,flipMode);return}
     Canvas(Modifier.fillMaxSize()){
         if(opaqueContent && frozenFrame!=null)drawScreenshotBackdrop(drawContext.canvas.nativeCanvas,frozenFrame,size.width.toInt(),size.height.toInt())
         if(plain)drawRect(Color.Black.copy(alpha=PlainFadeCurve.dim(amount,tuning)))

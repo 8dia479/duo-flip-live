@@ -101,7 +101,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     private fun motionUsable()=RuntimeConsent.ready(this) && getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
     private val motionListener=LiveAngles.Listener { value,_ -> MotionGlass.angle(value);if(settings().getBoolean("motion_glass",true) || settings().getBoolean("motion_glass_cover_enabled",false))MotionGlass.refresh(this,motionUsable()) }
     private fun usable()=RuntimeConsent.ready(this) && ::displays.isInitialized && displays.getDisplay(Display.DEFAULT_DISPLAY)?.state==Display.STATE_ON && !getSystemService(KeyguardManager::class.java).isKeyguardLocked()
-    private fun previewMode()=AnimationModePolicy.mirrors(settings().getString("animation_mode",AnimationModePolicy.DEFAULT)) && LiveAngles.effectAllowed && settings().getBoolean("cover_preview",true) && !settings().getBoolean("dual",false)
+    private fun previewMode()=!DeviceCompatibility.isFlip6(Build.MODEL) && AnimationModePolicy.mirrors(settings().getString("animation_mode",AnimationModePolicy.DEFAULT)) && LiveAngles.effectAllowed && settings().getBoolean("cover_preview",true) && !settings().getBoolean("dual",false)
     private val runtimeSettings by lazy { RuntimeSettings.get(this) }
     private fun settings()=runtimeSettings
     override fun onServiceConnected(){
@@ -115,7 +115,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     fun restart(){
         retainedPrimaryHost=false
         removeHost()
-        if(DeviceCompatibility.isFlip6(Build.MODEL)){note("Flip 6 system animation is not verified; use isolated preview");return}
+        
         if(!RuntimeConsent.ready(this) || !settings().getBoolean("enabled",false)){note("Off — turn on Enable fold animation");return}
         runCatching { startForegroundService(Intent(this, FoldBackgroundService::class.java)) }.onFailure { note("Open Duo and tap Start background animation") }
         val display=displays.getDisplay(Display.DEFAULT_DISPLAY)?:return
@@ -176,13 +176,15 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         compose.setContent {
             CompositionLocalProvider(LocalConfiguration provides config, LocalHinge provides rememberWindowHinge(context)) {
                 val screenshot=settings().getBoolean("dual",false)&&settings().getBoolean("screenshot_camera_startup",false)
-                val panelInner=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)>.7f
+                val panelRatio=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)
+                val flip6=DeviceCompatibility.isFlip6(Build.MODEL)
+                val panelInner=if(flip6)panelRatio<.7f else panelRatio>.7f
                 val outgoing=if(screenshot)HandoffFrames.forPanel(panelInner)?.takeIf{ScreenshotStartupPolicy.ownsFrame(it.physicalId,displayIdentity(displays.getDisplay(0)))} else null
                 val retained=if(screenshot && outgoing==null)IncomingAnimationFrame.retainedFor(displays.getDisplay(0),screenWidth,screenHeight) else null
                 val frozen=outgoing ?: retained
                 SideEffect{composedScreenshotStamp=outgoing?.stamp ?: 0L}
                 Box(Modifier.fillMaxSize()){
-                    DuoLiveShade(this@StandaloneService,intensity,innerPanel=panelInner,frozenFrame=frozen,opaqueContent=screenshot&&frozen!=null,liveFrame=if(screenshot&&frozen==null)IncomingAnimationFrame.frame?.takeIf{it.physicalId==displayIdentity(displays.getDisplay(0))} else null)
+                    DuoLiveShade(this@StandaloneService,intensity,innerPanel=panelInner,frozenFrame=frozen,opaqueContent=screenshot&&frozen!=null,liveFrame=if(screenshot&&frozen==null)IncomingAnimationFrame.frame?.takeIf{it.physicalId==displayIdentity(displays.getDisplay(0))} else null,flipMode=flip6)
                 }
             }
         }
@@ -308,6 +310,11 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     fun refreshSecondary(){
         if(secondaryRefreshPending){secondaryRefreshPending=false;android.view.Choreographer.getInstance().removeFrameCallback(secondaryRefreshFrame)}
         if(!::displays.isInitialized)return
+        if(DeviceCompatibility.isFlip6(Build.MODEL)){
+            PreviewTransition.update(false,false)
+            closeScreenshotWindow();dismissSecondary()
+            return
+        }
         val current=displays.getDisplay(0)
         val primaryInner=current?.mode?.let{minOf(it.physicalWidth,it.physicalHeight).toFloat()/maxOf(it.physicalWidth,it.physicalHeight)>.7f}?:false
         PreviewTransition.configure(this)

@@ -155,8 +155,8 @@ class MainActivity:ComponentActivity(){
        Text("Duo Fold Live",style=MaterialTheme.typography.headlineLarge)
        Text("Make every fold feel fluid.",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
        Toggle("Enable animation",enabled){
-        if(it && DeviceCompatibility.isFlip6(android.os.Build.MODEL)){android.widget.Toast.makeText(this@MainActivity,"Flip 6 system animation is not verified. Use the isolated preview.",android.widget.Toast.LENGTH_LONG).show()}
-        else if(it && !RuntimeConsent.ready(this@MainActivity)){startActivity(Intent(this@MainActivity,PrivacyActivity::class.java))}
+        
+        if(it && !RuntimeConsent.ready(this@MainActivity)){startActivity(Intent(this@MainActivity,PrivacyActivity::class.java))}
         else if(it && (!Settings.canDrawOverlays(this@MainActivity) || StandaloneService.instance==null)){
          startActivity(Intent(this@MainActivity,SetupActivity::class.java).putExtra("repair",true))
         }else{enabled=it;booleanSetting("enabled",it)}
