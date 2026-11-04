@@ -6,6 +6,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.content.res.Configuration
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.view.WindowManager
@@ -48,6 +50,15 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
     private var displayedAngle by mutableFloatStateOf(Float.NaN)
     private var displayedSource by mutableStateOf("")
     private var sensorStatus by mutableStateOf("")
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var activityStarted = false
+    private val stopSensorsAfterHandoff = Runnable {
+        if (!activityStarted) {
+            sensorManager.unregisterListener(this)
+            publicRegistered = false
+            samsungSource?.stop()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,9 +113,13 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
 
     override fun onStart() {
         super.onStart()
-        publicRegistered = hingeSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
-        } ?: false
+        activityStarted = true
+        mainHandler.removeCallbacks(stopSensorsAfterHandoff)
+        if (!publicRegistered) {
+            publicRegistered = hingeSensor?.let {
+                sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
+            } ?: false
+        }
         if (hingeSensor == null || !publicRegistered) {
             sensorStatus = getString(R.string.flip_studio_no_sensor)
         }
@@ -117,13 +132,21 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
     }
 
     override fun onStop() {
+        activityStarted = false
+        mainHandler.removeCallbacks(stopSensorsAfterHandoff)
+        // Some One UI handoffs briefly stop the Activity before showing it again.
+        // Keep the existing sensor reader alive for a short grace period; if the
+        // Activity does not return, release it automatically to save resources.
+        mainHandler.postDelayed(stopSensorsAfterHandoff, SENSOR_HANDOFF_GRACE_MS)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        mainHandler.removeCallbacks(stopSensorsAfterHandoff)
         sensorManager.unregisterListener(this)
         publicRegistered = false
         samsungSource?.stop()
-        // Keep the last timestamped sample briefly across a fold/unfold handoff.
-        // refreshDisplayedAngle() expires it after 3 seconds, so stale values never
-        // masquerade as live sensor data if the Activity stays in the background.
-        super.onStop()
+        super.onDestroy()
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -279,6 +302,10 @@ class FlipTransitionStudioActivity : ComponentActivity(), SensorEventListener {
         FlipTransitionPolicy.Posture.TRANSITION -> getString(R.string.flip_studio_posture_transition)
         FlipTransitionPolicy.Posture.INNER -> getString(R.string.flip_studio_posture_inner)
         FlipTransitionPolicy.Posture.UNKNOWN -> getString(R.string.flip_studio_posture_unknown)
+    }
+
+    private companion object {
+        const val SENSOR_HANDOFF_GRACE_MS = 1_500L
     }
 }
 
