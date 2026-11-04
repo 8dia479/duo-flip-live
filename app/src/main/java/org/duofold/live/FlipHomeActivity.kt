@@ -5,6 +5,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -36,6 +39,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
 
 /** Flip-only entry point. Samsung HAL logs are read-only and opt-in through Shizuku. */
@@ -165,12 +169,29 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   android.app.AlertDialog.Builder(this).setTitle(R.string.flip_shizuku_info).setMessage(message).setPositiveButton(R.string.flip_ok, null).show()
  }
  private fun openPreview() { startActivity(Intent(this, FlipPreviewActivity::class.java)) }
- private fun openTransitionStudio() { startActivity(Intent(this, FlipTransitionStudioActivity::class.java)) }
  private fun openOneUiContinuity() { startActivity(Intent(this, FlipOneUiContinuityActivity::class.java)) }
+
+ private fun createTransitionPreviewFrame(): GlassFrame {
+  val bitmap = Bitmap.createBitmap(360, 720, Bitmap.Config.ARGB_8888)
+  val canvas = Canvas(bitmap)
+  canvas.drawColor(android.graphics.Color.rgb(34, 50, 75))
+  val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  paint.color = android.graphics.Color.rgb(96, 205, 192)
+  canvas.drawRoundRect(26f, 50f, 334f, 310f, 28f, 28f, paint)
+  paint.color = android.graphics.Color.rgb(40, 52, 91)
+  canvas.drawCircle(180f, 180f, 86f, paint)
+  paint.color = android.graphics.Color.WHITE
+  paint.textSize = 28f
+  canvas.drawText("Duo Flip", 36f, 390f, paint)
+  paint.color = android.graphics.Color.rgb(182, 170, 237)
+  for (i in 0..3) canvas.drawRoundRect(32f, 430f + i * 50f, 328f, 462f + i * 50f, 12f, 12f, paint)
+  return GlassFrame(bitmap, bitmap.width, bitmap.height, 0L)
+ }
  @Composable private fun FlipInterface() {
   var page by rememberSaveable { mutableStateOf("home") }
   var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
   val prefs = remember { getSharedPreferences("flip_preview", 0) }
+  val transitionPreviewFrame = remember { createTransitionPreviewFrame() }
   var frameNow by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
   LaunchedEffect(samsungReceivedAtNs) {
    if (samsungReceivedAtNs > 0L) {
@@ -235,11 +256,40 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
       Text(getString(R.string.flip_home_16), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
      }
      FlipCard {
+      Text("iPhone Duo 스타일 화면 전환 미리보기", style = MaterialTheme.typography.titleMedium)
+      Text(
+       if (displayAngle.isFinite()) "실시간 힌지 각도 · ${"%.1f".format(displayAngle)}°" else "힌지 센서 측정 대기 중",
+       style = MaterialTheme.typography.bodySmall,
+       color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+      AndroidView(
+       factory = { FrostSurface(it, preview = true, previewFlip = true) },
+       modifier = Modifier.fillMaxWidth().height(320.dp),
+       update = { view ->
+        val naturalRotation = display?.rotation ?: 0
+        val topDownRotation = (FlipPreviewPolicy.shaderRotation(naturalRotation) + 2) % 4
+        val progress = if (displayAngle.isFinite()) DuoShadeCurve.progress(displayAngle, true) else 0f
+        view.configure(
+         transitionPreviewFrame,
+         progress,
+         .8f,
+         true,
+         topDownRotation,
+         angle = displayAngle
+        )
+       }
+      )
+      Text(
+       "실제 화면 전환 시스템을 바꾸는 기능은 아니며, 힌지 움직임에 맞춰 Duo 글래스 효과의 방향과 진행을 미리 보여줍니다.",
+       style = MaterialTheme.typography.bodySmall,
+       color = MaterialTheme.colorScheme.onSurfaceVariant
+      )
+     }
+     FlipCard {
       Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
        Column(Modifier.weight(1f)) { Text(getString(R.string.flip_home_17), style = MaterialTheme.typography.titleMedium); Text(getString(R.string.flip_home_18), style = MaterialTheme.typography.bodySmall) }
        Switch(checked = false, onCheckedChange = null, enabled = false)
       }
-      Button(onClick = { openTransitionStudio() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_42)) }
       OutlinedButton(onClick = { openOneUiContinuity() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_43)) }
       Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_19)) }
       OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_20)) }
