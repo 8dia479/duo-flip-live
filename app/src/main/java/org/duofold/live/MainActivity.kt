@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.foundation.Image
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
@@ -535,4 +537,14 @@ class MainActivity:ComponentActivity(){
  }
  if(show)AlertDialog(onDismissRequest={show=false},title={Text(label)},text={Column(Modifier.verticalScroll(rememberScrollState())){Text(help)}},confirmButton={TextButton(onClick={show=false}){Text("Done")}})
 }
-@Composable private fun Toggle(label:String,checked:Boolean,help:String?=null,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){if(help==null)Text(label,Modifier.weight(1f).padding(top=12.dp)) else InfoLabel(label,help,Modifier.weight(1f));Switch(checked,onChange)}}
+@Composable private fun Toggle(label:String,checked:Boolean,help:String?=null,onChange:(Boolean)->Unit){
+ Row(
+  Modifier.fillMaxWidth().toggleable(value=checked,role=Role.Switch,onValueChange=onChange).padding(vertical=4.dp),
+  horizontalArrangement=Arrangement.SpaceBetween,
+  verticalAlignment=androidx.compose.ui.Alignment.CenterVertically
+ ){
+  if(help==null)Text(label,Modifier.weight(1f).padding(vertical=12.dp))
+  else InfoLabel(label,help,Modifier.weight(1f))
+  Switch(checked=checked,onCheckedChange=null)
+ }
+}
