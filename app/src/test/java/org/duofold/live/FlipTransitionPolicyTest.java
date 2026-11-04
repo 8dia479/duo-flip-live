@@ -33,6 +33,14 @@ public class FlipTransitionPolicyTest {
         assertFalse(FlipTransitionPolicy.isValidAngle(-1f));
     }
 
+    @Test public void sensorFreshnessExpiresAndRejectsInvalidClocks() {
+        assertTrue(FlipTransitionPolicy.isFreshSample(3_000_000_000L, 4_000_000_000L, 1_500_000_000L));
+        assertFalse(FlipTransitionPolicy.isFreshSample(1_000_000_000L, 4_000_000_000L, 1_500_000_000L));
+        assertFalse(FlipTransitionPolicy.isFreshSample(0L, 4_000_000_000L, 1_500_000_000L));
+        assertFalse(FlipTransitionPolicy.isFreshSample(5_000_000_000L, 4_000_000_000L, 1_500_000_000L));
+        assertFalse(FlipTransitionPolicy.isFreshSample(3_000_000_000L, 4_000_000_000L, -1L));
+    }
+
     @Test public void clampsPreviewSmoothingDuration() {
         assertEquals(120, FlipTransitionPolicy.sanitizeDurationMs(0));
         assertEquals(280, FlipTransitionPolicy.sanitizeDurationMs(280));
