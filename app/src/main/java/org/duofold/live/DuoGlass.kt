@@ -532,7 +532,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      shader.setFloatUniform("verticalCompression",if(classicPreset && inner)(verticalCompression*1.375f).coerceAtMost(2f) else verticalCompression)
      shader.setFloatUniform("startupEasing",if(quality.getBoolean(if(inner)"inner_startup_easing" else "startup_easing",true))1f else 0f)
      shader.setFloatUniform("windowReveal",if(quality.getBoolean("window_reveal_v2",true))1f else 0f)
-     shader.setFloatUniform("reflectedCover",if(reflectedCover)1f else 0f);shader.setFloatUniform("flipPanel",if(previewFlip)1f else 0f)
+     shader.setFloatUniform("reflectedCover",if(reflectedCover)1f else 0f);if(!classic)shader.setFloatUniform("flipPanel",if(previewFlip)1f else 0f)
      shader.setFloatUniform("seamOffset",RenderQuality.seam(quality.getFloat("seam_offset",.07f)))
      shader.setFloatUniform("opaqueContent",if(opaqueContent)1f else 0f)
      shader.setFloatUniform("texSize",f.bitmap.width.toFloat(),f.bitmap.height.toFloat())
