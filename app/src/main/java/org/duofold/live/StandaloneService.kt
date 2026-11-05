@@ -312,7 +312,35 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         if(!::displays.isInitialized)return
         if(DeviceCompatibility.isFlip6(Build.MODEL)){
             PreviewTransition.update(false,false)
-            closeScreenshotWindow();dismissSecondary()
+            closeScreenshotWindow()
+            val target=displays.displays.firstOrNull{it.displayId==1 && BuiltInPanel.accepts(it)}
+            val interactive=getSystemService(PowerManager::class.java).isInteractive
+            val unlocked=!getSystemService(KeyguardManager::class.java).isKeyguardLocked
+            if(target==null || target.state!=Display.STATE_ON || !interactive || !unlocked ||
+                !settings().getBoolean("enabled",false) || !RuntimeConsent.ready(this) || !LiveAngles.effectAllowed){
+                dismissSecondary();secondaryKey="";return
+            }
+            val ratio=minOf(target.mode.physicalWidth,target.mode.physicalHeight).toFloat()/maxOf(target.mode.physicalWidth,target.mode.physicalHeight)
+            val targetInner=ratio<.7f
+            val key=physicalKey(target)+":flip-live:"+targetInner
+            if(secondaryKey==key && nativeOverlay?.attached==true){
+                secondaryReadySnapshot=nativeOverlay!!.draws>0
+                return
+            }
+            if(SystemClock.elapsedRealtime()<secondaryRetry)return
+            dismissSecondary()
+            try{
+                val intensity=maxOf(.8f,settings().getFloat("intensity",.8f))
+                val overlay=NativeInnerOverlay(this,target,intensity,targetInner,true)
+                nativeOverlay=overlay
+                overlay.show();secondaryKey=key;secondaryError=""
+                secondaryReadySnapshot=overlay.draws>0
+                RecoveryLog.add("Flip live panel overlay attached on D${target.displayId}; inner=$targetInner; geometry=${target.mode.physicalWidth}x${target.mode.physicalHeight}")
+            }catch(e:Exception){
+                dismissSecondary();secondaryKey="";secondaryError="${e.javaClass.simpleName}: ${e.message}"
+                secondaryRetry=SystemClock.elapsedRealtime()+1000
+                RecoveryLog.add("Flip secondary overlay error: $secondaryError")
+            }
             return
         }
         val current=displays.getDisplay(0)
