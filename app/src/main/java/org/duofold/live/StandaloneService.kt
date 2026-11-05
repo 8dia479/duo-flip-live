@@ -202,10 +202,12 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     override fun onMovement(){requestCapture()}
     override fun onFrame(active:Boolean,strength:Float){
         val changed=this.active!=active;this.active=active;this.strength=strength
-        if(!usable() || !LiveAngles.effectFresh() || !LiveAngles.effectAllowed){
+        val flipPoseRetained=DeviceCompatibility.isFlip6(Build.MODEL) && active &&
+            view?.isAttachedToWindow==true && LiveAngles.effectAllowed && strength>.003f
+        if(!usable() || (!LiveAngles.effectFresh() && !flipPoseRetained) || !LiveAngles.effectAllowed){
             val now=SystemClock.elapsedRealtime()
             val transientOff=active && view?.isAttachedToWindow==true && !settings().getBoolean("dual",false) &&
-                LiveAngles.effectFresh() && LiveAngles.effectAllowed &&
+                flipPoseRetained && LiveAngles.effectAllowed &&
                 getSystemService(PowerManager::class.java).isInteractive &&
                 !getSystemService(KeyguardManager::class.java).isKeyguardLocked &&
                 displays.getDisplay(0)?.state==Display.STATE_OFF
@@ -242,7 +244,9 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         MotionGlass.refresh(this@StandaloneService,motionUsable())
         diagnosticState("poll")
         val fresh=LiveAngles.effectFresh()
-        if(!fresh && (active || sourceWasFresh)){hide();note("Effect paused — waiting for fresh angles; panel session retained")}
+        val flipPoseRetained=DeviceCompatibility.isFlip6(Build.MODEL) && active &&
+            view?.isAttachedToWindow==true && LiveAngles.effectAllowed && strength>.003f
+        if(!fresh && (active || sourceWasFresh) && !flipPoseRetained){hide();note("Effect paused — waiting for fresh angles; panel session retained")}
         sourceWasFresh=fresh
         refreshSecondary()
         handler.postDelayed(this,250)
