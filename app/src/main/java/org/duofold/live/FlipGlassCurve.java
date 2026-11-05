@@ -12,7 +12,9 @@ public final class FlipGlassCurve {
         float value = Math.max(0f, Math.min(180f, angle));
         if (inner) {
             if (value <= closed) return direction < 0 ? 1f : 0f;
-            return DuoShadeCurve.progress(value, true, openThreshold);
+            float open = Float.isFinite(openThreshold) ? Math.max(120f, Math.min(178f, openThreshold)) : 172f;
+            float span = Math.max(1f, open - 90f);
+            return Math.max(0f, Math.min(1f, (open - value) / span));
         }
         // The newly active cover panel needs the closing effect to be visible
         // at the endpoint; the existing stale-angle grace then fades it away.
