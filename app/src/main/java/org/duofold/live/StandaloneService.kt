@@ -172,7 +172,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         }})
         compose.importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         compose.setViewTreeLifecycleOwner(lifecycle);compose.setViewTreeSavedStateRegistryOwner(lifecycle)
-        val intensity=settings().getFloat("intensity",.4f)
+        val intensity=if(DeviceCompatibility.isFlip6(Build.MODEL)) maxOf(.8f,settings().getFloat("intensity",.8f)) else settings().getFloat("intensity",.4f)
         compose.setContent {
             CompositionLocalProvider(LocalConfiguration provides config, LocalHinge provides rememberWindowHinge(context)) {
                 val screenshot=settings().getBoolean("dual",false)&&settings().getBoolean("screenshot_camera_startup",false)
@@ -201,10 +201,10 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     override fun onMovement(){requestCapture()}
     override fun onFrame(active:Boolean,strength:Float){
         val changed=this.active!=active;this.active=active;this.strength=strength
-        if(!usable() || !LiveAngles.fresh() || !LiveAngles.effectAllowed){
+        if(!usable() || !LiveAngles.effectFresh() || !LiveAngles.effectAllowed){
             val now=SystemClock.elapsedRealtime()
             val transientOff=active && view?.alpha==1f && !settings().getBoolean("dual",false) &&
-                LiveAngles.fresh() && LiveAngles.effectAllowed &&
+                LiveAngles.effectFresh() && LiveAngles.effectAllowed &&
                 getSystemService(PowerManager::class.java).isInteractive &&
                 !getSystemService(KeyguardManager::class.java).isKeyguardLocked &&
                 displays.getDisplay(0)?.state==Display.STATE_OFF
@@ -237,7 +237,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         if(settings().getBoolean("enabled",false))resumeIfUsable()
         MotionGlass.refresh(this@StandaloneService,motionUsable())
         diagnosticState("poll")
-        val fresh=LiveAngles.fresh()
+        val fresh=LiveAngles.effectFresh()
         if(!fresh && (active || sourceWasFresh)){hide();note("Effect paused — waiting for fresh angles; panel session retained")}
         sourceWasFresh=fresh
         refreshSecondary()
