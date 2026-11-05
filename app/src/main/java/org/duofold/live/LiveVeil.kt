@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
@@ -24,9 +25,10 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     var angle by remember { mutableFloatStateOf(Float.NaN) }
     var visualAngle by remember { mutableFloatStateOf(Float.NaN) }
     var amount by remember { mutableFloatStateOf(0f) }
+    var fadeAlpha by remember { mutableFloatStateOf(1f) }
     val expanded=innerPanel ?: LocalConfiguration.current.isRegular()
     val plainPrefs=LocalContext.current.getSharedPreferences("standalone",0)
-    val plain=plainPrefs.getString("animation_mode","")=="plain_fade"
+    val plain=!flipMode && plainPrefs.getString("animation_mode","")=="plain_fade"
     val tuning=remember(expanded){PlainFadeSettings.read(plainPrefs,expanded)}
     val handoff=HandoffSettings.angle(plainPrefs.getFloat("handoff_angle",HandoffSettings.DEFAULT))
     val openThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
@@ -44,24 +46,36 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     LaunchedEffect(lifecycle){lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
         var previous=0L
         while(true){
-            val fresh=LiveAngles.fresh() && angle.isFinite()
-            if(!fresh || !LiveAngles.effectAllowed){amount=0f;visualAngle=Float.NaN;previous=0L;delay(30);continue}
+            val sensorFresh=LiveAngles.fresh() && angle.isFinite()
+            val effectFresh=if(flipMode)LiveAngles.effectFresh() && angle.isFinite() else sensorFresh
+            if(!effectFresh || !LiveAngles.effectAllowed){
+                amount=0f;visualAngle=Float.NaN;fadeAlpha=0f;previous=0L
+                delay(30);continue
+            }
             withFrameNanos { now ->
-                val dt=if(previous==0L)8.33f else ((now-previous)/1_000_000f).coerceIn(1f,50f)
-                previous=now
-                visualAngle=FrameSmoothing.step(visualAngle,angle,dt,smoothingMs)
-                amount=if(!flipMode && latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
-                  else if(latestExpanded && angle>=FoldThreshold.sanitize(openThreshold))0f
-                  else if(plain)PlainFadeCurve.progress(visualAngle,latestExpanded,openThreshold,handoff)
-                  else DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
+                if(sensorFresh){
+                    val dt=if(previous==0L)8.33f else ((now-previous)/1_000_000f).coerceIn(1f,50f)
+                    previous=now
+                    visualAngle=FrameSmoothing.step(visualAngle,angle,dt,smoothingMs)
+                    amount=if(!flipMode && latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
+                      else if(latestExpanded && angle>=FoldThreshold.sanitize(openThreshold))0f
+                      else if(plain)PlainFadeCurve.progress(visualAngle,latestExpanded,openThreshold,handoff)
+                      else DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
+                    fadeAlpha=1f
+                }else{
+                    // A stationary Flip 6 hinge may stop emitting HAL lines. Hold the last
+                    // physical pose for two seconds, then fade the whole renderer without
+                    // inventing hinge motion or snapping the geometry back to flat.
+                    fadeAlpha=LiveAngles.effectAlpha()
+                }
             }
         }
     }}
     SideEffect { host.onFrame(amount>.003f,amount) }
     val fadePrefs=LocalContext.current.getSharedPreferences("standalone",0)
-    val debug=AnimationModePolicy.blackFade(fadePrefs.getString("animation_mode",AnimationModePolicy.DEFAULT),fadePrefs.getBoolean("debug_mode",false))
-    if(!debug || (liveFrame!=null && IncomingGhostDiagnostic.mode!=0)){DuoGlassSurface(visualAngle,amount,intensity,expanded,rotation,frozenFrame,reflectedCover,opaqueContent,liveFrame,flipMode);return}
-    Canvas(Modifier.fillMaxSize()){
+    val debug=!flipMode && AnimationModePolicy.blackFade(fadePrefs.getString("animation_mode",AnimationModePolicy.DEFAULT),fadePrefs.getBoolean("debug_mode",false))
+    if(!debug || (liveFrame!=null && IncomingGhostDiagnostic.mode!=0)){DuoGlassSurface(visualAngle,amount,intensity,expanded,rotation,frozenFrame,reflectedCover,opaqueContent,liveFrame,flipMode,renderAlpha=fadeAlpha);return}
+    Canvas(Modifier.fillMaxSize().graphicsLayer { alpha=fadeAlpha }){
         if(opaqueContent && frozenFrame!=null)drawScreenshotBackdrop(drawContext.canvas.nativeCanvas,frozenFrame,size.width.toInt(),size.height.toInt())
         if(plain)drawRect(Color.Black.copy(alpha=PlainFadeCurve.dim(amount,tuning)))
         val horizontal=rotation==Surface.ROTATION_90 || rotation==Surface.ROTATION_270
