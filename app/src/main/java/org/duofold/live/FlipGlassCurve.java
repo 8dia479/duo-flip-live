@@ -16,10 +16,11 @@ public final class FlipGlassCurve {
             float span = Math.max(1f, open - 90f);
             return Math.max(0f, Math.min(1f, (open - value) / span));
         }
-        // The newly active cover panel needs the closing effect to be visible
-        // at the endpoint; the existing stale-angle grace then fades it away.
-        if (value <= closed) return direction < 0 ? 1f : 0f;
-        float phase = direction < 0 ? (110f - value) / 110f : value / 110f;
+        // Reuse the original renderer's mirrored transition phase on the cover:
+        // fully visible at the closed endpoint, then recedes as the phone opens.
+        // The same angle curve naturally plays in reverse while closing.
+        if (value <= closed) return 1f;
+        float phase = (110f - value) / 110f;
         return Math.max(0f, Math.min(1f, phase));
     }
 }
