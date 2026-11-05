@@ -20,11 +20,22 @@ public class FlipGlassCurveTest {
         assertEquals(1f, FlipGlassCurve.progress(0f, false, -1, 172f, 2f), 0.0001f);
     }
 
-    @Test public void coverEffectGrowsAsPhoneOpens() {
-        assertEquals(0f, FlipGlassCurve.progress(0f, false, 1, 172f, 2f), 0.0001f);
-        assertTrue(FlipGlassCurve.progress(60f, false, 1, 172f, 2f) >
-                   FlipGlassCurve.progress(20f, false, 1, 172f, 2f));
-        assertEquals(1f, FlipGlassCurve.progress(120f, false, 1, 172f, 2f), 0.0001f);
+    @Test public void coverUnfoldStartsVisibleThenRecedes() {
+        float closed = FlipGlassCurve.progress(0f, false, 1, 172f, 2f);
+        float earlyOpen = FlipGlassCurve.progress(20f, false, 1, 172f, 2f);
+        float halfOpen = FlipGlassCurve.progress(60f, false, 1, 172f, 2f);
+        float handoff = FlipGlassCurve.progress(110f, false, 1, 172f, 2f);
+        assertEquals(1f, closed, 0.0001f);
+        assertTrue(closed > earlyOpen);
+        assertTrue(earlyOpen > halfOpen);
+        assertEquals(0f, handoff, 0.0001f);
+    }
+
+    @Test public void coverUsesSameAngleProfileForBothDirections() {
+        for (float angle : new float[]{0f, 2f, 20f, 60f, 90f, 110f, 180f}) {
+            assertEquals(FlipGlassCurve.progress(angle, false, -1, 172f, 2f),
+                         FlipGlassCurve.progress(angle, false, 1, 172f, 2f), 0.0001f);
+        }
     }
 
     @Test public void stationaryCoverUsesCurrentAngleFallback() {
