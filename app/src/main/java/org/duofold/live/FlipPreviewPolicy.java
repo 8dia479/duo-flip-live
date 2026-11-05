@@ -17,6 +17,10 @@ public final class FlipPreviewPolicy {
   if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
   return displayRotation;
  }
+ /** A tall inner panel is one continuous Flip display, not the two-pane Fold canvas. */
+ public static boolean singlePanelFallback(boolean inner, int width, int height) {
+  return inner && width > 0 && height > 0 && width / (float) height < 0.7f;
+ }
  /** Sensor events use elapsed-realtime nanoseconds. Never accept out-of-order samples. */
  public static final class Samples {
   private long timestamp;
