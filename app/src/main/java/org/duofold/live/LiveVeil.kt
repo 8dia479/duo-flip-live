@@ -32,9 +32,10 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     val tuning=remember(expanded){PlainFadeSettings.read(plainPrefs,expanded)}
     val handoff=HandoffSettings.angle(plainPrefs.getFloat("handoff_angle",HandoffSettings.DEFAULT))
     val openThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
+    val closedThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("closed_threshold",2f)
     val smoothingMs=FrameSmoothing.sanitize(LocalContext.current.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
     val displayRotation=LocalView.current.display?.rotation ?: Surface.ROTATION_0
-    val rotation=if(flipMode)FlipPreviewPolicy.shaderRotation(displayRotation) else displayRotation
+    val rotation=if(flipMode)FlipPreviewPolicy.liveShaderRotation(displayRotation) else displayRotation
     val hinge=LocalHinge.current
     val latestExpanded by rememberUpdatedState(expanded)
     val lifecycle=LocalLifecycleOwner.current.lifecycle
@@ -57,7 +58,8 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
                     val dt=if(previous==0L)8.33f else ((now-previous)/1_000_000f).coerceIn(1f,50f)
                     previous=now
                     visualAngle=FrameSmoothing.step(visualAngle,angle,dt,smoothingMs)
-                    amount=if(!flipMode && latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
+                    amount=if(flipMode)FlipGlassCurve.progress(visualAngle,latestExpanded,LiveAngles.externalDirection(),openThreshold,closedThreshold)
+                      else if(latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
                       else if(latestExpanded && angle>=FoldThreshold.sanitize(openThreshold))0f
                       else if(plain)PlainFadeCurve.progress(visualAngle,latestExpanded,openThreshold,handoff)
                       else DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
