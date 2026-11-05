@@ -2,7 +2,7 @@ name: Android signed release
 
 on:
   push:
-    branches: ['**', '!arena/**']
+    branches: ['**', '!arena/**', '!feature/oneui-handoff-real-device']
     paths-ignore:
       - '**/*.md'
       - 'tools/play-private/**'
