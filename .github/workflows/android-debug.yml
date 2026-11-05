@@ -6,6 +6,7 @@ on:
       - feature/flip6-live-transitions
     paths:
       - 'app/**'
+      - 'tools/**'
       - 'gradle/**'
       - 'gradlew'
       - 'gradle.properties'
