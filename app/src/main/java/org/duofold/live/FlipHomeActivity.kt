@@ -191,6 +191,8 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
   var page by rememberSaveable { mutableStateOf("home") }
   var shizuku by remember { mutableStateOf(getString(R.string.flip_home_10)) }
   val prefs = remember { getSharedPreferences("flip_preview", 0) }
+  val runtimePrefs = remember { getSharedPreferences("standalone", 0) }
+  var animationEnabled by remember { mutableStateOf(runtimePrefs.getBoolean("enabled", false)) }
   val transitionPreviewFrame = remember { createTransitionPreviewFrame() }
   var frameNow by remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
   LaunchedEffect(samsungReceivedAtNs) {
@@ -219,6 +221,7 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
    delay(1500)
   } }
   LaunchedEffect(resumeVersion) {
+   animationEnabled = runtimePrefs.getBoolean("enabled", false)
    sensitivity = prefs.getFloat("sensitivity", 1f).let { if (it.isFinite()) it.coerceIn(.1f, 5f) else 1f }
    deadband = prefs.getFloat("deadband", 0f).let { if (it.isFinite()) it.coerceIn(0f, 3f) else 0f }
    fold = prefs.getBoolean("fold", true); unfold = prefs.getBoolean("unfold", true)
@@ -286,10 +289,19 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
       )
      }
      FlipCard {
-      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-       Column(Modifier.weight(1f)) { Text(getString(R.string.flip_home_17), style = MaterialTheme.typography.titleMedium); Text(getString(R.string.flip_home_18), style = MaterialTheme.typography.bodySmall) }
-       Switch(checked = false, onCheckedChange = null, enabled = false)
+      Text(getString(R.string.flip_home_17), style = MaterialTheme.typography.titleMedium)
+      Text(if (animationEnabled) getString(R.string.flip_home_47) else getString(R.string.flip_home_18), style = MaterialTheme.typography.bodySmall)
+      Button(onClick = {
+       if (animationEnabled) {
+        RuntimeControls.stopAll(this@FlipHomeActivity)
+        animationEnabled = false
+       } else {
+        startActivity(Intent(this@FlipHomeActivity, SetupActivity::class.java))
+       }
+      }, modifier = Modifier.fillMaxWidth()) {
+       Text(getString(if (animationEnabled) R.string.flip_home_45 else R.string.flip_home_44))
       }
+      Text(getString(R.string.flip_home_46), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       OutlinedButton(onClick = { openOneUiContinuity() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_43)) }
       Button(onClick = { openPreview() }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_19)) }
       OutlinedButton(onClick = { page = "diagnostics" }, modifier = Modifier.fillMaxWidth()) { Text(getString(R.string.flip_home_20)) }
@@ -298,8 +310,15 @@ class FlipHomeActivity : ComponentActivity(), SensorEventListener {
      FlipCard {
       Text(getString(R.string.flip_home_21), style = MaterialTheme.typography.titleLarge)
       Text(getString(R.string.flip_home_22), style = MaterialTheme.typography.bodySmall)
-      Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(getString(R.string.flip_home_17), Modifier.weight(1f)); Switch(false, null, enabled = false) }
       Text(getString(R.string.flip_home_23), color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Button(onClick = {
+       if (animationEnabled) {
+        RuntimeControls.stopAll(this@FlipHomeActivity)
+        animationEnabled = false
+       } else {
+        startActivity(Intent(this@FlipHomeActivity, SetupActivity::class.java))
+       }
+      }, modifier = Modifier.fillMaxWidth()) { Text(getString(if (animationEnabled) R.string.flip_home_45 else R.string.flip_home_44)) }
       Text(getString(R.string.flip_sensitivity, sensitivity))
       Slider(sensitivity, { sensitivity = it; prefs.edit().putFloat("sensitivity", it).apply() }, valueRange = .1f..5f)
       Text(getString(R.string.flip_deadband_home, deadband))
