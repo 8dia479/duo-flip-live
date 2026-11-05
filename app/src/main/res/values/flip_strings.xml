@@ -51,12 +51,12 @@
  <string name="flip_home_15">Display status</string>
  <string name="flip_home_16">Candidates are based on dimensions; panel identity is unverified.</string>
  <string name="flip_home_17">System animation</string>
- <string name="flip_home_18">Disabled until verified on Flip 6.</string>
+ <string name="flip_home_18">After permissions are configured, the hinge-linked effect can render over the screen. Samsung One UI still owns the physical panel handoff.</string>
  <string name="flip_home_19">Animation preview</string>
  <string name="flip_home_20">Diagnostics</string>
  <string name="flip_home_21">Animation</string>
- <string name="flip_home_22">System effects are disabled. These settings only affect the preview.</string>
- <string name="flip_home_23">Animation speed · unavailable before system integration</string>
+ <string name="flip_home_22">The sensitivity and noise controls below tune preview input. The live effect has a separate permission and start flow.</string>
+ <string name="flip_home_23">Preview sensitivity and noise threshold</string>
  <string name="flip_home_24">Folding effect</string>
  <string name="flip_home_25">Unfolding effect</string>
  <string name="flip_home_26">Preview settings and start</string>
@@ -70,7 +70,7 @@
  <string name="flip_home_34">Live diagnostics and CSV</string>
  <string name="flip_home_35">Copy error log</string>
  <string name="flip_home_36">Error log copied</string>
- <string name="flip_home_37">NOT TESTED ON DEVICE · System display transition support is unverified.</string>
+ <string name="flip_home_37">One UI controls the physical panel handoff. Hinge sensing and overlay behavior still need device and firmware validation.</string>
  <string name="flip_home_38">Disconnected</string>
  <string name="flip_home_39">Connected · authorized</string>
  <string name="flip_home_40">Connected · permission needed</string>
@@ -201,7 +201,11 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_studio_visual_only">The preview transition range is a visual tuning value. It does not identify the real display handoff point used by One UI.</string>
 
 
- <string name="flip_home_43">One UI handoff setup and diagnostics</string>
+ <string name="flip_home_43">One UI cover-screen settings and diagnostics</string>
+ <string name="flip_home_44">Configure permissions and start live animation</string>
+ <string name="flip_home_45">Stop live animation</string>
+ <string name="flip_home_46">On One UI 9, swipe up on the cover screen and choose Add apps → Duo Flip. This only lets you open Duo Flip on the cover screen; it does not enable the hinge effect.</string>
+ <string name="flip_home_47">The live hinge-linked overlay is enabled. One UI manages the inner/cover display handoff.</string>
  <string name="flip_oneui_title">One UI continuity diagnostics</string>
  <string name="flip_oneui_setting_title">1. Allow apps on the cover screen in One UI</string>
  <string name="flip_oneui_setting_path">One UI 9 or later: swipe up on the cover screen → Add apps → choose Duo Flip. One UI 8 or earlier: Settings → Advanced features → Labs → enable Apps to use on cover screen and select Duo Flip.</string>
