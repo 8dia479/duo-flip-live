@@ -51,12 +51,12 @@
  <string name="flip_home_15">화면 상태</string>
  <string name="flip_home_16">화면 크기를 이용한 후보이며 실제 패널 식별은 검증되지 않았습니다.</string>
  <string name="flip_home_17">시스템 애니메이션</string>
- <string name="flip_home_18">Flip 6에서 아직 검증되지 않아 꺼져 있습니다.</string>
+ <string name="flip_home_18">권한 설정을 마치면 실제 화면 위에 힌지 연동 효과를 표시합니다. One UI의 패널 전환 자체는 삼성 시스템이 담당합니다.</string>
  <string name="flip_home_19">애니메이션 미리보기</string>
  <string name="flip_home_20">진단 보기</string>
  <string name="flip_home_21">애니메이션</string>
- <string name="flip_home_22">시스템 효과는 비활성화되어 있습니다. 아래 설정은 미리보기에만 적용됩니다.</string>
- <string name="flip_home_23">애니메이션 속도 · 시스템 통합 전 사용 불가</string>
+ <string name="flip_home_22">아래 감도와 노이즈 범위는 미리보기 입력에 적용됩니다. 실제 효과는 별도의 권한 설정과 시작 절차가 필요합니다.</string>
+ <string name="flip_home_23">미리보기 감도 및 노이즈 범위</string>
  <string name="flip_home_24">접을 때 효과</string>
  <string name="flip_home_25">펼칠 때 효과</string>
  <string name="flip_home_26">미리보기 설정 및 실행</string>
@@ -70,7 +70,7 @@
  <string name="flip_home_34">실시간 진단 및 CSV</string>
  <string name="flip_home_35">오류 로그 복사</string>
  <string name="flip_home_36">오류 로그를 복사했습니다</string>
- <string name="flip_home_37">NOT TESTED ON DEVICE · 실제 시스템 화면 전환은 지원 확인 전입니다.</string>
+ <string name="flip_home_37">실제 패널 전환은 One UI가 제어합니다. 힌지 센서와 오버레이의 실기기 동작은 기기·펌웨어별 확인이 필요합니다.</string>
  <string name="flip_home_38">연결 안 됨</string>
  <string name="flip_home_39">연결됨 · 권한 허용</string>
  <string name="flip_home_40">연결됨 · 권한 필요</string>
@@ -202,7 +202,11 @@
  <string name="flip_studio_visual_only">미리보기 전환 구간은 시각 효과용 기준값이며, 실제 One UI의 화면 전환 시점과 같다고 보장하지 않습니다.</string>
 
 
- <string name="flip_home_43">One UI 화면 전환 설정 및 진단</string>
+ <string name="flip_home_43">One UI 커버 화면 설정 및 진단</string>
+ <string name="flip_home_44">권한 설정 후 실제 애니메이션 시작</string>
+ <string name="flip_home_45">실제 애니메이션 중지</string>
+ <string name="flip_home_46">One UI 9에서는 커버 화면에서 위로 스와이프한 뒤 앱 추가에서 Duo Flip을 선택하세요. 이 설정은 커버 화면에서 Duo Flip 앱을 여는 용도이며, 화면 전환 효과의 활성화와는 별개입니다.</string>
+ <string name="flip_home_47">실제 힌지 연동 오버레이가 켜져 있습니다. One UI가 커버·내부 화면 전환을 관리합니다.</string>
  <string name="flip_oneui_title">One UI 앱 연속성 설정</string>
  <string name="flip_oneui_setting_title">1. 커버 화면에서 앱 사용 허용</string>
  <string name="flip_oneui_setting_path">One UI 9 이상: 커버 화면에서 위로 스와이프 → 앱 추가 → Duo Flip 선택. One UI 8 이하: 설정 → 유용한 기능 → 실험실 → 커버 화면에서 앱 사용을 켜고 Duo Flip을 선택하세요.</string>
