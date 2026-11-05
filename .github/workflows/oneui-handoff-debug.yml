@@ -1,0 +1,62 @@
+name: One UI handoff debug APK
+on:
+  push:
+    branches: [feature/oneui-handoff-real-device]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - 'tools/**'
+      - '.github/workflows/oneui-handoff-debug.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feature/oneui-handoff-real-device
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - name: Install Android SDK
+        run: |
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;35.0.0'
+          printf 'sdk.dir=%s\\n' "$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+      - name: Run source checks
+        run: |
+          python3 tools/check_inner_stretch.py
+          python3 tools/check_window_shading.py
+          python3 tools/check_motion_projection.py
+          python3 -m unittest discover -s tools/tests
+      - name: Test and assemble debug APK
+        run: ./gradlew --no-daemon --max-workers=2 --console=plain testGithubDebugUnitTest assembleGithubDebug
+      - name: Verify APK and launcher
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/github/debug/app-github-debug.apk
+          test -s "$apk"
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$tools/apksigner" verify --verbose "$apk"
+          "$tools/aapt" dump badging "$apk" | tee package-info.txt
+          grep -F "launchable-activity: name='org.duofold.live.FlipHomeActivity'" package-info.txt
+          sha256sum "$apk" | tee SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duo-flip-oneui-debug-${{ github.run_number }}
+          path: |
+            app/build/outputs/apk/github/debug/app-github-debug.apk
+            package-info.txt
+            SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
