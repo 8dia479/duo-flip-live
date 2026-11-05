@@ -17,6 +17,10 @@ public final class FlipPreviewPolicy {
   if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
   return displayRotation;
  }
+ /** Live renderer uses the same top-down orientation as the Flip home preview. */
+ public static int liveShaderRotation(int displayRotation) {
+  return (shaderRotation(displayRotation) + 2) % 4;
+ }
  /** A tall inner panel is one continuous Flip display, not the two-pane Fold canvas. */
  public static boolean singlePanelFallback(boolean inner, int width, int height) {
   return inner && width > 0 && height > 0 && width / (float) height < 0.7f;
