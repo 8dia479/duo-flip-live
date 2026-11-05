@@ -173,7 +173,10 @@ internal object DuoGlassShader {
    else sourceUV.y=uv.y+(sourceUV.y-uv.y)*amount;
   }
   sourceUV=sourceUV*sampleScale+sampleOffset;
-  float shaderProgress=inner>0.5 ? clamp(a/1.570796327,0.0,1.0) : clamp((3.141592654-a)/1.570796327,0.0,1.0);
+  // Flip cover reveal follows the clamshell transition phase, so unfolding
+  // starts with a visible projection and naturally recedes toward handoff.
+  float shaderProgress=inner>0.5 ? clamp(a/1.570796327,0.0,1.0) :
+    (flipPanel>0.5 ? clamp(progress,0.0,1.0) : clamp((3.141592654-a)/1.570796327,0.0,1.0));
   float motion=smoothstep(0.0,1.0,shaderProgress);
   // Keep the 72 source-pixel reference radius, including the image's black margins.
   float shadeEdge=windowReveal>0.5 ? (flipPanel>0.5 ? 1.0-axis : windowShadeEdge(axis,inner,fallback)) : edge;
@@ -524,11 +527,18 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      val aaMode=if(quality.getBoolean("antialias_enabled",true))RenderQuality.aaMode(quality.getInt("antialias_method_v2",0)) else 0
      shader.setFloatUniform("aaStrength",if(quality.getBoolean("antialias_enabled",true))RenderQuality.antialias(quality.getFloat("antialias_strength",.35f)) else 0f)
      val configuredBlur=RenderQuality.blur(quality.getFloat("blur_strength",.3f))
-     val effectiveBlur=if(previewFlip)maxOf(1f,configuredBlur) else configuredBlur
+     // The source renderer's 72px glass radius was too restrained on the Flip
+     // at its Fold-oriented defaults; preserve user settings above stronger floors.
+     val effectiveBlur=if(previewFlip)maxOf(1.65f,configuredBlur) else configuredBlur
      shader.setFloatUniform("blurStrength",if(rendering=="projection" || rendering=="system" || rendering=="system_projected")0f else if(classicPreset)1.875f else effectiveBlur)
-     shader.setFloatUniform("earlyStretch",quality.getFloat(if(inner)"inner_early_stretch" else "early_stretch",if(inner).9f else 2.7f).let{if(it.isFinite())it.coerceIn(0f,3f) else if(inner).9f else 2.7f})
-     shader.setFloatUniform("endStretch",if(quality.getBoolean(if(inner)"inner_enhanced_end_stretch" else "enhanced_end_stretch",true))quality.getFloat(if(inner)"inner_end_stretch" else "end_stretch",if(inner).6f else 1.25f).let{if(it.isFinite())it.coerceIn(if(inner)0f else .8f,1.5f) else if(inner).6f else 1.25f} else .8f)
-     val verticalCompression=quality.getFloat(if(inner)"inner_vertical_compression" else "cover_vertical_compression",if(inner).4f else .9f).let{if(it.isFinite())it.coerceIn(0f,2f) else if(inner).4f else .9f}
+     val configuredEarlyStretch=quality.getFloat(if(inner)"inner_early_stretch" else "early_stretch",if(inner).9f else 2.7f).let{if(it.isFinite())it.coerceIn(0f,3f) else if(inner).9f else 2.7f}
+     val effectiveEarlyStretch=if(previewFlip && inner)maxOf(2f,configuredEarlyStretch) else configuredEarlyStretch
+     shader.setFloatUniform("earlyStretch",effectiveEarlyStretch)
+     val configuredEndStretch=if(quality.getBoolean(if(inner)"inner_enhanced_end_stretch" else "enhanced_end_stretch",true))quality.getFloat(if(inner)"inner_end_stretch" else "end_stretch",if(inner).6f else 1.25f).let{if(it.isFinite())it.coerceIn(if(inner)0f else .8f,1.5f) else if(inner).6f else 1.25f} else .8f
+     val effectiveEndStretch=if(previewFlip && inner)maxOf(.8f,configuredEndStretch) else configuredEndStretch
+     shader.setFloatUniform("endStretch",effectiveEndStretch)
+     val configuredVerticalCompression=quality.getFloat(if(inner)"inner_vertical_compression" else "cover_vertical_compression",if(inner).4f else .9f).let{if(it.isFinite())it.coerceIn(0f,2f) else if(inner).4f else .9f}
+     val verticalCompression=if(previewFlip)maxOf(1.15f,configuredVerticalCompression) else configuredVerticalCompression
      shader.setFloatUniform("verticalCompression",if(classicPreset && inner)(verticalCompression*1.375f).coerceAtMost(2f) else verticalCompression)
      shader.setFloatUniform("startupEasing",if(quality.getBoolean(if(inner)"inner_startup_easing" else "startup_easing",true))1f else 0f)
      shader.setFloatUniform("windowReveal",if(quality.getBoolean("window_reveal_v2",true))1f else 0f)
