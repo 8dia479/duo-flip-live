@@ -251,7 +251,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
  private fun fallback(reason:String){if(reason!=fallbackReason){if(!inner)CoverStartupTrace.event("FALLBACK ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");if(reason.isNotEmpty() || fallbackReason.isNotEmpty())RecoveryLog.add("Glass fallback ${if(inner) "inner" else "cover"}: ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");fallbackReason=reason}}
  private val clearGuard=object:Runnable{override fun run(){
   if(!holder.surface.isValid)return
-  if(paintedEffect && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f))){
+  if(paintedEffect && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip))){
    amount=0f;renderedAngle=Float.NaN;requestDraw()
   }
   postDelayed(this,100)
@@ -470,7 +470,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      frame?.let{cover->if(PreviewExpansionPolicy.fresh(cover.stamp,SystemClock.elapsedRealtime()))canvas.drawBitmap(cover.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),basePaint)}
     }
     if(preview && frame!=null)canvas.drawBitmap(frame!!.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),null)
-    if(amount<=.003f || (!preview && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f)))){
+    if(amount<=.003f || (!preview && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip)))){
      paintedEffect=false;fallback("")
      endpoint=!preview && inner && angleFresh() && LiveAngles.effectAllowed && targetAngle.isFinite() && targetAngle>=FoldThreshold.sanitize(openThreshold)
      if(endpoint){
