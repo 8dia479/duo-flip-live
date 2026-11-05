@@ -18,14 +18,16 @@ class LauncherTest(unittest.TestCase):
                     launchers.append(activity.get(ANDROID+'name'))
         self.assertEqual(['.FlipHomeActivity'], launchers)
 
-    def test_home_does_not_route_through_setup_or_shizuku(self):
+    def test_home_uses_explicit_opt_in_for_live_runtime(self):
         source = (ROOT / 'app/src/main/java/org/duofold/live/FlipHomeActivity.kt').read_text()
-        self.assertNotIn('FirstRun.required', source)
-        self.assertNotIn('SetupActivity', source)
+        on_create = source.split('override fun onCreate', 1)[1].split('override fun onStart', 1)[0]
+        self.assertNotIn('SetupActivity', on_create)
+        self.assertNotIn('Shizuku.requestPermission', on_create)
         self.assertIn('mutableStateOf("home")', source)
+        self.assertIn('startActivity(Intent(this@FlipHomeActivity, SetupActivity::class.java))', source)
+        self.assertIn('RuntimeControls.stopAll(this@FlipHomeActivity)', source)
         self.assertIn('openPreview()', source)
         self.assertIn('page = "diagnostics"', source)
-        self.assertIn('Switch(checked = false, onCheckedChange = null, enabled = false)', source)
 
 if __name__ == '__main__':
     unittest.main()
