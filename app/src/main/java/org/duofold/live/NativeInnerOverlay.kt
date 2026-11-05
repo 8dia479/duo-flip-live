@@ -32,7 +32,9 @@ internal class NativeInnerOverlay(service:StandaloneService,display:Display,inte
    }
   }
  }
+ fun setVisible(visible:Boolean){view.alpha=if(visible)1f else 0f}
  fun show(){
+  view.alpha=0f
   val params=WindowManager.LayoutParams(-1,-1,WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,PixelFormat.TRANSLUCENT)
