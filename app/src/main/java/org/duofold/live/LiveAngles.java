@@ -74,7 +74,17 @@ public final class LiveAngles {
  public static float currentAngle(){return angle;}
  public static long ageMs(){return last==0?-1:SystemClock.elapsedRealtime()-last;}
  public static boolean fresh(){return last>0 && SystemClock.elapsedRealtime()-last<750;}
- public static void add(Listener l){listeners.add(l);if(fresh())l.angle(angle,last*1000000L);}
+ /** The Flip 6 HAL may stop emitting unchanged angles; retain its last visual pose for a short grace period. */
+ public static boolean effectFresh(){
+  if(fresh())return true;
+  if(!DeviceCompatibility.isFlip6(android.os.Build.MODEL))return false;
+  return LiveEffectFadePolicy.active(ageMs());
+ }
+ public static float effectAlpha(){
+  if(!DeviceCompatibility.isFlip6(android.os.Build.MODEL))return fresh()?1f:0f;
+  return LiveEffectFadePolicy.alpha(ageMs());
+ }
+ public static void add(Listener l){listeners.add(l);if(effectFresh())l.angle(angle,last*1000000L);}
  public static void remove(Listener l){listeners.remove(l);}
  private final RuntimeSettings settings;
  private final Context context; private final Handler main=new Handler(Looper.getMainLooper());
