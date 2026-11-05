@@ -45,6 +45,7 @@ internal object DuoGlassShader {
  uniform float blurStrength;
  uniform float seamOffset;
  uniform float reflectedCover;
+ uniform float flipPanel;
  uniform float windowReveal;
  uniform float earlyStretch;
  uniform float endStretch;
@@ -175,7 +176,7 @@ internal object DuoGlassShader {
   float shaderProgress=inner>0.5 ? clamp(a/1.570796327,0.0,1.0) : clamp((3.141592654-a)/1.570796327,0.0,1.0);
   float motion=smoothstep(0.0,1.0,shaderProgress);
   // Keep the 72 source-pixel reference radius, including the image's black margins.
-  float shadeEdge=windowReveal>0.5 ? windowShadeEdge(axis,inner,fallback) : edge;
+  float shadeEdge=windowReveal>0.5 ? (flipPanel>0.5 ? 1.0-axis : windowShadeEdge(axis,inner,fallback)) : edge;
   float blurEdge=shadeEdge;
   if(inner>0.5 && fallback<0.5)blurEdge=(shadeEdge+2.0*seamOffset)/(1.0+2.0*seamOffset);
   if(reflectedCover>0.5)blurEdge=max(blurEdge,(2.0*seamOffset-axis)/(1.0+2.0*seamOffset));
@@ -367,8 +368,11 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     if(!renderedAngle.isFinite() && !inner && targetAngle<=12f && context.getSharedPreferences("standalone",0).getBoolean("window_reveal_v2",true) && context.getSharedPreferences("standalone",0).getBoolean("startup_easing",true))renderedAngle=0f
     renderedAngle=FrameSmoothing.step(renderedAngle,targetAngle,dt,smoothingMs)
     hingeAngle=renderedAngle
-    val normal=DuoShadeCurve.progress(renderedAngle,inner,openThreshold)
-    amount=if(inner && !frozen && !reflectedCover)MotionGlass.innerAmount(normal,targetAngle>=FoldThreshold.sanitize(openThreshold),record=true)
+    val closedThreshold=context.getSharedPreferences("standalone",0).getFloat("closed_threshold",2f)
+    val normal=if(previewFlip)FlipGlassCurve.progress(renderedAngle,inner,LiveAngles.externalDirection(),openThreshold,closedThreshold)
+      else DuoShadeCurve.progress(renderedAngle,inner,openThreshold)
+    amount=if(previewFlip)normal
+      else if(inner && !frozen && !reflectedCover)MotionGlass.innerAmount(normal,targetAngle>=FoldThreshold.sanitize(openThreshold),record=true)
       else if(inner && targetAngle>=FoldThreshold.sanitize(openThreshold))0f else normal
    }
    lastFrameNanos=now
@@ -522,7 +526,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      shader.setFloatUniform("verticalCompression",if(classicPreset && inner)(verticalCompression*1.375f).coerceAtMost(2f) else verticalCompression)
      shader.setFloatUniform("startupEasing",if(quality.getBoolean(if(inner)"inner_startup_easing" else "startup_easing",true))1f else 0f)
      shader.setFloatUniform("windowReveal",if(quality.getBoolean("window_reveal_v2",true))1f else 0f)
-     shader.setFloatUniform("reflectedCover",if(reflectedCover)1f else 0f)
+     shader.setFloatUniform("reflectedCover",if(reflectedCover)1f else 0f);shader.setFloatUniform("flipPanel",if(previewFlip)1f else 0f)
      shader.setFloatUniform("seamOffset",RenderQuality.seam(quality.getFloat("seam_offset",.07f)))
      shader.setFloatUniform("opaqueContent",if(opaqueContent)1f else 0f)
      shader.setFloatUniform("texSize",f.bitmap.width.toFloat(),f.bitmap.height.toFloat())
@@ -551,7 +555,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      // Honest, live black-fade fallback; never leave stale captured content visible.
      val horizontal=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_270
      val reversed=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_180
-     val colors=IntArray(65){i->var x=i/64f;if(reversed)x=1f-x;val edge=if(inner)1f-2*x else x;Color.argb((255*DuoShadeCurve.alpha(amount,edge,intensity)).toInt(),0,0,0)}
+     val colors=IntArray(65){i->var x=i/64f;if(reversed)x=1f-x;val edge=if(previewFlip)1f-x else if(inner)1f-2*x else x;Color.argb((255*DuoShadeCurve.alpha(amount,edge,intensity)).toInt(),0,0,0)}
      paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,colors,null,Shader.TileMode.CLAMP)
      canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
     }
