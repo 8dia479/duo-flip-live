@@ -12,6 +12,8 @@ public final class LiveAngles {
  private static final Set<Listener> listeners=new HashSet<>();
  private static float angle=Float.NaN;
  private static long last=0;
+ private static float externalAngle=Float.NaN;
+ private static volatile int externalDirection=0;
  public static boolean dualActive=false;
  public static String screenshotTrace="Screenshot trace idle";
  public static boolean coverPreview=false;
@@ -50,14 +52,18 @@ public final class LiveAngles {
   if(binder==null || !binder.transact(code,p,r,0))throw new IllegalStateException("Preview helper unavailable");
  }
  public static void setExternalCaptureBinder(IBinder binder){externalCapture=binder;}
+ public static int externalDirection(){return externalDirection;}
  public static void publishExternalAngle(float value){
   if(!Float.isFinite(value)||value<0f||value>180f)return;
+  if(Float.isFinite(externalAngle) && Math.abs(value-externalAngle)>=0.35f)
+   externalDirection=value>externalAngle?1:-1;
+  externalAngle=value;
   long stamp=SystemClock.elapsedRealtime();angle=value;last=stamp;effectAllowed=true;
   status=String.format(Locale.US,"Flip 6 hinge live · %.1f°",value);
   for(Listener l:new ArrayList<>(listeners))l.angle(value,stamp*1000000L);
  }
  public static void clearExternalAngle(String message){
-  angle=Float.NaN;last=0;effectAllowed=true;status=message;
+  angle=Float.NaN;last=0;externalAngle=Float.NaN;externalDirection=0;effectAllowed=true;status=message;
   long stamp=SystemClock.elapsedRealtimeNanos();
   for(Listener l:new ArrayList<>(listeners))l.angle(Float.NaN,stamp);
  }
