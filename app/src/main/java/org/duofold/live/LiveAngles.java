@@ -55,7 +55,7 @@ public final class LiveAngles {
  public static int externalDirection(){return externalDirection;}
  public static void publishExternalAngle(float value){
   if(!Float.isFinite(value)||value<0f||value>180f)return;
-  if(Float.isFinite(externalAngle) && Math.abs(value-externalAngle)>=0.35f)
+  if(Float.isFinite(externalAngle) && Math.abs(value-externalAngle)>=0.08f)
    externalDirection=value>externalAngle?1:-1;
   externalAngle=value;
   long stamp=SystemClock.elapsedRealtime();angle=value;last=stamp;effectAllowed=true;
