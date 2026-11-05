@@ -215,7 +215,13 @@ internal object DuoGlassShader {
  val frame=frozenFrame ?: liveFrame ?: GlassFrames.frame
  val running=frozenFrame==null && amount>.003f && (if(flipMode)LiveAngles.effectFresh() else LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
- DisposableEffect(running){GlassFrames.configure(context);if(running)GlassFrames.acquire();onDispose{if(running)GlassFrames.release()}}
+ val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
+  val panelDisplayOn=runCatching{context.getSystemService(android.hardware.display.DisplayManager::class.java).getDisplay(panelDisplayId)?.state==android.view.Display.STATE_ON}.getOrDefault(false)
+  val captureRunning=running && (!flipMode || panelDisplayOn)
+  DisposableEffect(captureRunning,panelDisplayId){
+   if(captureRunning){GlassFrames.configure(context,panelDisplayId);GlassFrames.acquire()}
+   onDispose{if(captureRunning)GlassFrames.release()}
+  }
  if(opaqueContent && frozenFrame!=null){
   AndroidView(factory={ScreenshotGlassView(it)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
   return
