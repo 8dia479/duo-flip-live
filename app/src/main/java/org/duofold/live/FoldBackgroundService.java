@@ -102,7 +102,7 @@ createNotificationChannel(this);}
   try{
    if(!foldEnabled){if(angles!=null){angles.stop();angles=null;}if(flip6)stopFlip6Runtime("Fold animation disabled");LiveAngles.status="Fold animation disabled";}
    else if(flip6){
-    if(now>=nextFlip6ReaderAttempt&&(flip6Runtime==null||!LiveAngles.fresh())){
+    if(now>=nextFlip6ReaderAttempt&&(flip6Runtime==null||!LiveAngles.effectFresh())){
      if(flip6Runtime!=null)stopFlip6Runtime("Reconnecting to Flip 6 hinge sensor");
      nextFlip6ReaderAttempt=now+8000L;
      flip6Runtime=new Flip6LiveRuntime(FoldBackgroundService.this);
@@ -126,7 +126,7 @@ createNotificationChannel(this);}
    }
   }catch(Exception e){LiveAngles.status="Waiting for privileged access: "+e.getClass().getSimpleName();}
   if(!flip6){FoldAwakeDefault.tick(FoldBackgroundService.this);InnerDecorRecovery.tick(FoldBackgroundService.this);}
-  String notice=!foldEnabled?"Fold animation disabled":LiveAngles.fresh()?(flip6?"Flip 6 hinge animation active":"Live hinge control active"):LiveAngles.status;
+  String notice=!foldEnabled?"Fold animation disabled":LiveAngles.effectFresh()?(flip6?"Flip 6 hinge animation active":"Live hinge control active"):LiveAngles.status;
   if(!notice.equals(lastNotice)){lastNotice=notice;getSystemService(NotificationManager.class).notify(112,notification(notice));}
   SupportPrompts.tick(FoldBackgroundService.this);
   main.postDelayed(this,2000);
