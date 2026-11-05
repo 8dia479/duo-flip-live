@@ -24,5 +24,12 @@ public class FlipPreviewPolicyTest {
   assertEquals(3,FlipPreviewPolicy.shaderRotation(2));
   assertEquals(0,FlipPreviewPolicy.shaderRotation(3));
  }
+
+ @Test public void captureRotationStaysNativeWhileShaderUsesHingeAxis() {
+  for(int rotation=0;rotation<4;rotation++) {
+   assertEquals(rotation,FlipPreviewPolicy.captureRotation(rotation));
+   assertEquals((rotation+1)%4,FlipPreviewPolicy.shaderRotation(rotation));
+  }
+ }
  @Test(expected=IllegalArgumentException.class) public void invalidRotationRejected(){FlipPreviewPolicy.shaderRotation(-1);}
 }
