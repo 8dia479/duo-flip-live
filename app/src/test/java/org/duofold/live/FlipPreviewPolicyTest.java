@@ -31,5 +31,13 @@ public class FlipPreviewPolicyTest {
    assertEquals((rotation+1)%4,FlipPreviewPolicy.shaderRotation(rotation));
   }
  }
+
+ @Test public void tallInnerFlipUsesOneContinuousPanelNotHalfFoldCanvas() {
+  assertTrue(FlipPreviewPolicy.singlePanelFallback(true, 360, 720));
+  assertTrue(FlipPreviewPolicy.singlePanelFallback(true, 1080, 2640));
+  assertFalse(FlipPreviewPolicy.singlePanelFallback(false, 360, 720));
+  assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 720, 360));
+  assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 0, 720));
+ }
  @Test(expected=IllegalArgumentException.class) public void invalidRotationRejected(){FlipPreviewPolicy.shaderRotation(-1);}
 }
