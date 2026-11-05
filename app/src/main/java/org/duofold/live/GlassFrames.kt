@@ -94,9 +94,10 @@ internal object GlassFrames {
  private val tick=object:Runnable{override fun run(){
   if(clients==0 || suspended)return
   if(pending){main.postDelayed(this,retryDelay(50));return}
+  val captureDisplay=targetCaptureDisplay()
   val valid=surfaces.values.filter{it.displayId==captureDisplay && it.control.isValid}.map{it.control}.take(8)
   if(valid.isEmpty()){if(recoveryStarted>0L && recoveryFailure!="no exclusion surface"){recoveryFailure="no exclusion surface";RecoveryLog.add("Glass wake recovery waiting for exclusion surface")};frame=null;main.postDelayed(this,retryDelay(100));return}
-  val started=SystemClock.elapsedRealtimeNanos();val gen=epoch.start();val captureDisplay=targetCaptureDisplay();pending=true
+  val started=SystemClock.elapsedRealtimeNanos();val gen=epoch.start();pending=true
   executor.execute{
    var result:Bundle?=null;var error="Glass frame unavailable"
    val p=Parcel.obtain();val r=Parcel.obtain()
