@@ -501,7 +501,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
        shader.setInputShader("mip$i",map)
       }
      }
-     val fallback=inner && !previewFlip && f.width.toFloat()/f.height<.7f
+     val fallback=FlipPreviewPolicy.singlePanelFallback(inner,f.width,f.height)
      // Match the live cover mirror exactly so blur never jumps between two content crops.
      val projectedCover=!inner && minOf(f.width,f.height).toFloat()/maxOf(f.width,f.height)>.7f
      val fit=if(projectedCover)LiveMirrorLayout.fill(f.bitmap.width,f.bitmap.height,width,height) else null
@@ -513,7 +513,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      if(classic)shader.setFloatUniform("classicPreset",if(classicPreset)1f else 0f)
      val aaMode=if(quality.getBoolean("antialias_enabled",true))RenderQuality.aaMode(quality.getInt("antialias_method_v2",0)) else 0
      shader.setFloatUniform("aaStrength",if(quality.getBoolean("antialias_enabled",true))RenderQuality.antialias(quality.getFloat("antialias_strength",.35f)) else 0f)
-     shader.setFloatUniform("blurStrength",if(rendering=="projection" || rendering=="system" || rendering=="system_projected")0f else if(classicPreset)1.875f else RenderQuality.blur(quality.getFloat("blur_strength",.3f)))
+     val configuredBlur=RenderQuality.blur(quality.getFloat("blur_strength",.3f))
+     val effectiveBlur=if(previewFlip)maxOf(1f,configuredBlur) else configuredBlur
+     shader.setFloatUniform("blurStrength",if(rendering=="projection" || rendering=="system" || rendering=="system_projected")0f else if(classicPreset)1.875f else effectiveBlur)
      shader.setFloatUniform("earlyStretch",quality.getFloat(if(inner)"inner_early_stretch" else "early_stretch",if(inner).9f else 2.7f).let{if(it.isFinite())it.coerceIn(0f,3f) else if(inner).9f else 2.7f})
      shader.setFloatUniform("endStretch",if(quality.getBoolean(if(inner)"inner_enhanced_end_stretch" else "enhanced_end_stretch",true))quality.getFloat(if(inner)"inner_end_stretch" else "end_stretch",if(inner).6f else 1.25f).let{if(it.isFinite())it.coerceIn(if(inner)0f else .8f,1.5f) else if(inner).6f else 1.25f} else .8f)
      val verticalCompression=quality.getFloat(if(inner)"inner_vertical_compression" else "cover_vertical_compression",if(inner).4f else .9f).let{if(it.isFinite())it.coerceIn(0f,2f) else if(inner).4f else .9f}
