@@ -8,7 +8,7 @@ class FlipResources(unittest.TestCase):
   en=read(res/'values/flip_strings.xml'); ko=read(res/'values-ko/flip_strings.xml')
   self.assertEqual(set(en),set(ko) - {"service_description"})
   for key in en:
-   pattern=r'%\\d+\\$(?:\\.\\d+)?[sdf]'
+   pattern=r'%\d+\$(?:\.\d+)?[sdf]'
    self.assertCountEqual(re.findall(pattern,en[key]),re.findall(pattern,ko[key]),key)
  def test_live_mode_does_not_fall_back_to_virtual_angle(self):
   s=(ROOT/'app/src/main/java/org/duofold/live/FlipPreviewActivity.kt').read_text()
