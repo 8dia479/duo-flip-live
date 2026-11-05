@@ -12,14 +12,23 @@ internal object GlassFrames {
  private val executor=Executors.newSingleThreadExecutor()
  private val settingsExecutor=Executors.newSingleThreadExecutor()
  private var screenshotMode=false
- private fun targetCaptureDisplay()=if(screenshotMode&&LiveAngles.dualActive) IncomingAnimationFrame.captureDisplay else ScreenshotRenderPolicy.captureDisplay(LiveAngles.continuityNative,false,LiveAngles.dualActive)
+ @Volatile private var flipCaptureDisplay=0
+ private fun targetCaptureDisplay()=if(DeviceCompatibility.isFlip6(android.os.Build.MODEL))flipCaptureDisplay else if(screenshotMode&&LiveAngles.dualActive) IncomingAnimationFrame.captureDisplay else ScreenshotRenderPolicy.captureDisplay(LiveAngles.continuityNative,false,LiveAngles.dualActive)
  private var targetFps=120
  private var discarded=0L;private var coalesced=0L
  private var lastMipMs=0L;private var lastDeliveryMs=0L
  fun pipelineReport()="Capture processing: last mip build=${lastMipMs}ms; last main delivery queue=${lastDeliveryMs}ms; obsolete captures discarded=$discarded; fresh requests coalesced=$coalesced"
  private var statusAt=0L;private var statusDisplay=-1
  private var measuredStart=0L;private var measuredFrames=0;private var measuredFps=0f
- fun configure(context:android.content.Context){screenshotMode=context.getSharedPreferences("standalone",0).getBoolean("dual",false)&&context.getSharedPreferences("standalone",0).getBoolean("screenshot_camera_startup",false);targetFps=RenderQuality.fps(context.getSharedPreferences("standalone",0).getInt("content_fps",120))}
+ fun configure(context:android.content.Context,displayId:Int=0){
+  screenshotMode=context.getSharedPreferences("standalone",0).getBoolean("dual",false)&&context.getSharedPreferences("standalone",0).getBoolean("screenshot_camera_startup",false)
+  targetFps=RenderQuality.fps(context.getSharedPreferences("standalone",0).getInt("content_fps",120))
+  if(DeviceCompatibility.isFlip6(android.os.Build.MODEL) && displayId in 0..1 && flipCaptureDisplay!=displayId){
+   flipCaptureDisplay=displayId
+   if(clients>0)requestFreshCapture()
+   RecoveryLog.add("Flip glass capture target switched to D$displayId")
+  }
+ }
  private fun levels(bitmap:Bitmap,gen:Int):List<Bitmap>{
   val out=ArrayList<Bitmap>();var level=bitmap
   repeat(7){
