@@ -204,15 +204,18 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         val changed=this.active!=active;this.active=active;this.strength=strength
         if(!usable() || !LiveAngles.effectFresh() || !LiveAngles.effectAllowed){
             val now=SystemClock.elapsedRealtime()
-            val transientOff=active && view?.alpha==1f && !settings().getBoolean("dual",false) &&
+            val transientOff=active && view?.isAttachedToWindow==true && !settings().getBoolean("dual",false) &&
                 LiveAngles.effectFresh() && LiveAngles.effectAllowed &&
                 getSystemService(PowerManager::class.java).isInteractive &&
                 !getSystemService(KeyguardManager::class.java).isKeyguardLocked &&
                 displays.getDisplay(0)?.state==Display.STATE_OFF
             if(transientOff){
                 if(transientOffStarted==0L)transientOffStarted=now
+                val elapsed=now-transientOffStarted
                 if(CoverBridgePolicy.active(now,transientOffStarted)){
-                    HandoffStartupTrace.event("HOST_RETAIN_TRANSIENT_OFF","alpha retained; bounded 600ms; interactive and unlocked")
+                    val retainedAlpha=LiveEffectFadePolicy.alpha(elapsed)
+                    view?.alpha=retainedAlpha
+                    HandoffStartupTrace.event("HOST_RETAIN_TRANSIENT_OFF","alpha=$retainedAlpha; held for 2s then faded over 420ms")
                     return
                 }
             }
@@ -317,26 +320,30 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
             val target=displays.displays.firstOrNull{it.displayId==1 && BuiltInPanel.accepts(it)}
             val interactive=getSystemService(PowerManager::class.java).isInteractive
             val unlocked=!getSystemService(KeyguardManager::class.java).isKeyguardLocked
-            if(target==null || target.state!=Display.STATE_ON || !interactive || !unlocked ||
-                !settings().getBoolean("enabled",false) || !RuntimeConsent.ready(this) || !LiveAngles.effectAllowed){
+            val keepOverlay=FlipPanelOverlayPolicy.shouldRetain(
+                target!=null,settings().getBoolean("enabled",false),RuntimeConsent.ready(this),LiveAngles.effectAllowed)
+            if(!keepOverlay){
                 dismissSecondary();secondaryKey="";return
             }
-            val ratio=minOf(target.mode.physicalWidth,target.mode.physicalHeight).toFloat()/maxOf(target.mode.physicalWidth,target.mode.physicalHeight)
+            val panel=target!!
+            val visible=FlipPanelOverlayPolicy.shouldBeVisible(panel.state==Display.STATE_ON,interactive,unlocked)
+            val ratio=minOf(panel.mode.physicalWidth,panel.mode.physicalHeight).toFloat()/maxOf(panel.mode.physicalWidth,panel.mode.physicalHeight)
             val targetInner=ratio<.7f
-            val key=physicalKey(target)+":flip-live:"+targetInner
+            val key=physicalKey(panel)+":flip-live:"+targetInner
             if(secondaryKey==key && nativeOverlay?.attached==true){
-                secondaryReadySnapshot=nativeOverlay!!.draws>0
+                nativeOverlay!!.setVisible(visible)
+                secondaryReadySnapshot=visible && nativeOverlay!!.draws>0
                 return
             }
             if(SystemClock.elapsedRealtime()<secondaryRetry)return
             dismissSecondary()
             try{
                 val intensity=maxOf(.8f,settings().getFloat("intensity",.8f))
-                val overlay=NativeInnerOverlay(this,target,intensity,targetInner,true)
+                val overlay=NativeInnerOverlay(this,panel,intensity,targetInner,true)
                 nativeOverlay=overlay
-                overlay.show();secondaryKey=key;secondaryError=""
-                secondaryReadySnapshot=overlay.draws>0
-                RecoveryLog.add("Flip live panel overlay attached on D${target.displayId}; inner=$targetInner; geometry=${target.mode.physicalWidth}x${target.mode.physicalHeight}")
+                overlay.show();overlay.setVisible(visible);secondaryKey=key;secondaryError=""
+                secondaryReadySnapshot=visible && overlay.draws>0
+                RecoveryLog.add("Flip live panel overlay retained on D${panel.displayId}; visible=$visible; inner=$targetInner; geometry=${panel.mode.physicalWidth}x${panel.mode.physicalHeight}")
             }catch(e:Exception){
                 dismissSecondary();secondaryKey="";secondaryError="${e.javaClass.simpleName}: ${e.message}"
                 secondaryRetry=SystemClock.elapsedRealtime()+1000
