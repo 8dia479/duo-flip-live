@@ -216,7 +216,7 @@ internal object DuoGlassShader {
  // Incoming screenshot-mode content uses the same live SurfaceView as normal mode.
  // Outgoing content and the bounded incoming remap hold use a window-buffer composite.
  val frame=frozenFrame ?: liveFrame ?: GlassFrames.frame
- val running=frozenFrame==null && amount>.003f && (if(flipMode)LiveAngles.effectFresh() else LiveAngles.fresh())
+ val running=frozenFrame==null && amount>.003f && (if(flipMode)LiveAngles.effectFresh() || renderAlpha>.003f else LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
  val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
   val panelDisplayOn=runCatching{context.getSystemService(android.hardware.display.DisplayManager::class.java).getDisplay(panelDisplayId)?.state==android.view.Display.STATE_ON}.getOrDefault(false)
@@ -254,7 +254,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
  private fun fallback(reason:String){if(reason!=fallbackReason){if(!inner)CoverStartupTrace.event("FALLBACK ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");if(reason.isNotEmpty() || fallbackReason.isNotEmpty())RecoveryLog.add("Glass fallback ${if(inner) "inner" else "cover"}: ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");fallbackReason=reason}}
  private val clearGuard=object:Runnable{override fun run(){
   if(!holder.surface.isValid)return
-  if(paintedEffect && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip))){
+  if(paintedEffect && ((!previewFlip && !angleFresh()) || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip))){
    amount=0f;renderedAngle=Float.NaN;requestDraw()
   }
   postDelayed(this,100)
@@ -372,7 +372,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   frameQueued=false
   if(holder.surface.isValid && dirty){
    dirty=false
-   if(!preparedStandby && !preview && targetAngle.isFinite() && angleFresh()){
+   // Flip's Compose timeline is the sole interpolator; don't run a second
+   // SurfaceView hinge smoother that can race AndroidView updates at handoff.
+   if(!preparedStandby && !preview && !previewFlip && targetAngle.isFinite() && angleFresh()){
     val dt=if(lastFrameNanos==0L)8.33f else ((now-lastFrameNanos)/1_000_000f).coerceIn(1f,50f)
     if(!renderedAngle.isFinite() && !inner && targetAngle<=12f && context.getSharedPreferences("standalone",0).getBoolean("window_reveal_v2",true) && context.getSharedPreferences("standalone",0).getBoolean("startup_easing",true))renderedAngle=0f
     renderedAngle=FrameSmoothing.step(renderedAngle,targetAngle,dt,smoothingMs)
@@ -417,7 +419,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    if(!previewFlip && !reflectedCover && context.getSharedPreferences("standalone",0).getBoolean("cover_preview",true) && !context.getSharedPreferences("standalone",0).getBoolean("dual",false))PreviewTransition.markAnimation(surfaceControl)
    smoothingMs=FrameSmoothing.sanitize(context.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
   openThreshold=context.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
-   if(!angleListening){angleListening=true;LiveAngles.add(angleListener)}
+   if(!previewFlip && !angleListening){angleListening=true;LiveAngles.add(angleListener)}
   }
   updateBufferSize();preferFastRefresh();requestDraw()
   if(!preview){removeCallbacks(clearGuard);postDelayed(clearGuard,100)}
@@ -473,7 +475,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      frame?.let{cover->if(PreviewExpansionPolicy.fresh(cover.stamp,SystemClock.elapsedRealtime()))canvas.drawBitmap(cover.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),basePaint)}
     }
     if(preview && frame!=null)canvas.drawBitmap(frame!!.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),null)
-    if(amount<=.003f || (!preview && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip)))){
+    if(amount<=.003f || (!preview && ((!previewFlip && !angleFresh()) || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f && !previewFlip)))){
      paintedEffect=false;fallback("")
      endpoint=!preview && inner && angleFresh() && LiveAngles.effectAllowed && targetAngle.isFinite() && targetAngle>=FoldThreshold.sanitize(openThreshold)
      if(endpoint){
