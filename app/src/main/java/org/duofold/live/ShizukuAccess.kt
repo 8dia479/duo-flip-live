@@ -12,7 +12,9 @@ object ShizukuAccess {
   if(context.resources.configuration.locales[0]?.language=="ko") korean else english
  fun request(context: Context, code: Int): String = try {
   when {
-   PrivilegedAccess.rootSelected() -> PrivilegedAccess.report()
+   PrivilegedAccess.rootSelected() -> if(DeviceCompatibility.isFlip6(Build.MODEL))
+    ui(context, "This experimental Flip 6 path requires Shizuku.", "Flip 6의 이 실험 기능은 Shizuku 연결이 필요합니다. 위에서 'Shizuku 사용으로 전환'을 누르세요.")
+    else PrivilegedAccess.report()
    !Shizuku.pingBinder() -> ui(context, "Duo has not received Shizuku’s connection. Check that Shizuku says Running (pairing alone is not enough). Keep both apps in the same Android profile. If it is already running, restart Shizuku, then reopen Duo.", "Duo가 Shizuku 연결을 받지 못했습니다. Shizuku에 '실행 중(Running)'이라고 표시되는지 확인하세요(페어링만으로는 충분하지 않습니다). 두 앱이 동일한 Android 사용자 프로필에 설치되어 있어야 합니다. 이미 실행 중이라면 Shizuku를 다시 시작한 뒤 Duo를 다시 여세요.")
    Shizuku.isPreV11() -> ui(context, "This Shizuku version is unsupported. Update official Shizuku.", "현재 Shizuku 버전은 지원되지 않습니다. 공식 Shizuku를 최신 버전으로 업데이트하세요.")
    Shizuku.checkSelfPermission()==0 -> ui(context, "Shizuku permission is granted. This does not verify the angle reader or required wallpaper.", "Shizuku 권한이 허용되었습니다. 다만 이것만으로 힌지 각도 판독이나 필요한 배경화면의 정상 작동까지 확인된 것은 아닙니다.")
@@ -49,7 +51,7 @@ object ShizukuAccess {
   if(PrivilegedAccess.rootSelected()){AlertDialog.Builder(context).setTitle(ui(context, "Root connection", "루트 연결")).setMessage(message).setPositiveButton(ui(context, "OK", "확인"),null).setNeutralButton(ui(context, "Copy report", "보고서 복사")){_,_->copy(context)}.show();return}
   AlertDialog.Builder(context).setTitle(ui(context, "Shizuku connection", "Shizuku 연결")).setMessage(message)
    .setPositiveButton(ui(context, "OK", "확인"),null).setNeutralButton(ui(context, "Copy report", "보고서 복사")){_,_->copy(context)}
-   .setNegativeButton("Open Shizuku"){_,_->
+   .setNegativeButton(ui(context, "Open Shizuku", "Shizuku 열기")){_,_->
     val intent=context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
     if(intent!=null)runCatching{context.startActivity(intent)}.onFailure{Toast.makeText(context,ui(context, "Could not open Shizuku. Open your Shizuku app manually.", "Shizuku를 열 수 없습니다. Shizuku 앱을 직접 실행하세요."),Toast.LENGTH_LONG).show()}
     else Toast.makeText(context,ui(context, "Shizuku app shortcut unavailable. Open Shizuku or your installed fork manually.", "Shizuku 앱 바로가기를 찾을 수 없습니다. Shizuku 또는 설치한 변형 앱을 직접 실행하세요."),Toast.LENGTH_LONG).show()
