@@ -204,8 +204,8 @@ Panel candidates are not confirmed identities.</string>
  <string name="flip_home_43">One UI handoff setup and diagnostics</string>
  <string name="flip_oneui_title">One UI continuity diagnostics</string>
  <string name="flip_oneui_setting_title">1. Allow apps on the cover screen in One UI</string>
- <string name="flip_oneui_setting_path">Settings → Advanced features → Labs → Apps to use on cover screen. Enable the feature and select the apps to test.</string>
- <string name="flip_oneui_setting_detail">Samsung lists this feature for Flip 5, Flip 6, and Flip 7. Available apps and behavior can vary by device software and app version.</string>
+ <string name="flip_oneui_setting_path">One UI 9 or later: swipe up on the cover screen → Add apps → choose Duo Flip. One UI 8 or earlier: Settings → Advanced features → Labs → enable Apps to use on cover screen and select Duo Flip.</string>
+ <string name="flip_oneui_setting_detail">On One UI 9, use the cover screen Add apps flow instead of the older MultiStar launcher widget. If Add apps is missing, check for software updates and review Cover screen settings. App availability varies by device and app version.</string>
  <string name="flip_oneui_open_settings">Open Settings</string>
  <string name="flip_oneui_actual_handoff">2. One UI owns the actual display handoff</string>
  <string name="flip_oneui_actual_handoff_detail">When the device folds or unfolds, One UI handles launching the selected app on the cover screen and changing the app window configuration. Apps must handle configuration changes and preserve UI state.</string>
