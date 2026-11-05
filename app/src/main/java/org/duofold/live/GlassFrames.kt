@@ -153,7 +153,7 @@ internal object GlassFrames {
   }
  }
  fun incoming(task:Int,physical:String,targetDisplay:Int=1,done:(GlassFrame?,String)->Unit){
-  val valid=surfaces.values.filter{it.isValid}.take(8)
+  val valid=surfaces.values.filter{it.displayId==targetDisplay && it.control.isValid}.map{it.control}.take(8)
   if(valid.isEmpty()){done(null,"No exclusion surface");return}
   settingsExecutor.execute{
    val p=Parcel.obtain();val r=Parcel.obtain();var frame:GlassFrame?=null;var note="Capture unavailable"
