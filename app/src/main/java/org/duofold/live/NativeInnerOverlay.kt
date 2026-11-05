@@ -10,7 +10,7 @@ import androidx.lifecycle.*
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 /** Native animation uses an accessibility window, not a presentation-only display. */
-internal class NativeInnerOverlay(service:StandaloneService,display:Display,intensity:Float){
+internal class NativeInnerOverlay(service:StandaloneService,display:Display,intensity:Float,private val innerPanel:Boolean=true,private val flipMode:Boolean=false){
  private val context=service.createDisplayContext(display).createWindowContext(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,null)
  private val wm=context.getSystemService(WindowManager::class.java)
  private val owner=OverlayOwner()
@@ -28,7 +28,7 @@ internal class NativeInnerOverlay(service:StandaloneService,display:Display,inte
     DuoLiveShade(object:StandaloneFoldHost{
      override fun onMovement(){}
      override fun onFrame(active:Boolean,strength:Float){this@NativeInnerOverlay.strength=strength}
-    },intensity,true)
+    },intensity,innerPanel=innerPanel,flipMode=flipMode)
    }
   }
  }
