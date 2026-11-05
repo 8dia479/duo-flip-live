@@ -39,5 +39,12 @@ public class FlipPreviewPolicyTest {
   assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 720, 360));
   assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 0, 720));
  }
+
+ @Test public void liveShaderUsesTopDownPreviewOrientation() {
+  assertEquals(3,FlipPreviewPolicy.liveShaderRotation(0));
+  assertEquals(0,FlipPreviewPolicy.liveShaderRotation(1));
+  assertEquals(1,FlipPreviewPolicy.liveShaderRotation(2));
+  assertEquals(2,FlipPreviewPolicy.liveShaderRotation(3));
+ }
  @Test(expected=IllegalArgumentException.class) public void invalidRotationRejected(){FlipPreviewPolicy.shaderRotation(-1);}
 }
