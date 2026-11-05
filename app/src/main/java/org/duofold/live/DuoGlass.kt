@@ -208,22 +208,22 @@ internal object DuoGlassShader {
  }
  """.trimIndent()
 }
-@Composable internal fun DuoGlassSurface(angle:Float,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozenFrame:GlassFrame?=null,reflectedCover:Boolean=false,opaqueContent:Boolean=false,liveFrame:GlassFrame?=null,flipMode:Boolean=false){
+@Composable internal fun DuoGlassSurface(angle:Float,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozenFrame:GlassFrame?=null,reflectedCover:Boolean=false,opaqueContent:Boolean=false,liveFrame:GlassFrame?=null,flipMode:Boolean=false,renderAlpha:Float=1f){
  // Incoming screenshot-mode content uses the same live SurfaceView as normal mode.
  // Outgoing content and the bounded incoming remap hold use a window-buffer composite.
  val frame=frozenFrame ?: liveFrame ?: GlassFrames.frame
- val running=frozenFrame==null && amount>.003f && LiveAngles.fresh()
+ val running=frozenFrame==null && amount>.003f && (if(flipMode)LiveAngles.effectFresh() else LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
  DisposableEffect(running){GlassFrames.configure(context);if(running)GlassFrames.acquire();onDispose{if(running)GlassFrames.release()}}
  if(opaqueContent && frozenFrame!=null){
-  AndroidView(factory={ScreenshotGlassView(it)},modifier=Modifier.fillMaxSize(),update={it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
+  AndroidView(factory={ScreenshotGlassView(it)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
   return
  }
  if(!flipMode && !reflectedCover && frozenFrame==null && liveFrame==null && !context.getSharedPreferences("standalone",0).getBoolean("dual",false)){
-  AndroidView(factory={PreparedGlassHost(it)},modifier=Modifier.fillMaxSize(),update={it.configure(frame,amount,intensity,inner,rotation,angle)})
+  AndroidView(factory={PreparedGlassHost(it)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frame,amount,intensity,inner,rotation,angle)})
   return
  }
- AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover,previewFlip=flipMode)},modifier=Modifier.fillMaxSize(),update={it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
+ AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover,previewFlip=flipMode)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
 }
 internal class FrostSurface(context:Context,private val preview:Boolean=false,private val reflectedCover:Boolean=false,private val previewFlip:Boolean=false):SurfaceView(context),SurfaceHolder.Callback {
  private val projectedBlur=ProjectedSystemGlassBlur(context)
@@ -239,10 +239,12 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
  private var angleListening=false
  private var paintedEffect=false
  private var fallbackReason=""
+ private fun angleFresh()=if(previewFlip)LiveAngles.effectFresh() else LiveAngles.fresh()
+ private fun captureRotation()=if(previewFlip)FlipPreviewPolicy.captureRotation(display?.rotation ?: rotation) else rotation
  private fun fallback(reason:String){if(reason!=fallbackReason){if(!inner)CoverStartupTrace.event("FALLBACK ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");if(reason.isNotEmpty() || fallbackReason.isNotEmpty())RecoveryLog.add("Glass fallback ${if(inner) "inner" else "cover"}: ${reason.ifEmpty{"cleared"}}; angle=$targetAngle; amount=$amount");fallbackReason=reason}}
  private val clearGuard=object:Runnable{override fun run(){
   if(!holder.surface.isValid)return
-  if(paintedEffect && (!LiveAngles.fresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f))){
+  if(paintedEffect && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f))){
    amount=0f;renderedAngle=Float.NaN;requestDraw()
   }
   postDelayed(this,100)
@@ -360,7 +362,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   frameQueued=false
   if(holder.surface.isValid && dirty){
    dirty=false
-   if(!preparedStandby && !preview && targetAngle.isFinite() && LiveAngles.fresh()){
+   if(!preparedStandby && !preview && targetAngle.isFinite() && angleFresh()){
     val dt=if(lastFrameNanos==0L)8.33f else ((now-lastFrameNanos)/1_000_000f).coerceIn(1f,50f)
     if(!renderedAngle.isFinite() && !inner && targetAngle<=12f && context.getSharedPreferences("standalone",0).getBoolean("window_reveal_v2",true) && context.getSharedPreferences("standalone",0).getBoolean("startup_easing",true))renderedAngle=0f
     renderedAngle=FrameSmoothing.step(renderedAngle,targetAngle,dt,smoothingMs)
@@ -371,7 +373,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    }
    lastFrameNanos=now
    drawFrame()
-   if(!preparedStandby && !preview && LiveAngles.fresh() && targetAngle.isFinite() && (kotlin.math.abs(renderedAngle-targetAngle)>=.01f || inner && MotionGlass.returning()))requestDraw()
+   if(!preparedStandby && !preview && angleFresh() && targetAngle.isFinite() && (kotlin.math.abs(renderedAngle-targetAngle)>=.01f || inner && MotionGlass.returning()))requestDraw()
   }
  }
  private fun requestDraw(){dirty=true;if(!frameQueued && holder.surface.isValid){frameQueued=true;choreographer.postFrameCallback(vsync)}}
@@ -446,7 +448,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     if(windowCanvas==null)canvas.scale(canvas.width.toFloat()/width,canvas.height.toFloat()/height)
     if(diagnosticMode!=0 && windowCanvas==null && !preview && !frozen && display?.displayId==IncomingAnimationFrame.captureDisplay){
      val captured=frame;val current=Point();display?.getRealSize(current)
-     if(captured!=null && captured.displayId==display?.displayId && captured.rotation==rotation && LiveAngles.fresh() && LiveAngles.effectAllowed && GlassFramePolicy.usable(captured.stamp,SystemClock.elapsedRealtime(),captured.width,captured.height,current.x,current.y)){
+     if(captured!=null && captured.displayId==display?.displayId && captured.rotation==captureRotation() && angleFresh() && LiveAngles.effectAllowed && GlassFramePolicy.usable(captured.stamp,SystemClock.elapsedRealtime(),captured.width,captured.height,current.x,current.y)){
       val seam=RenderQuality.seam(context.getSharedPreferences("standalone",0).getFloat("seam_offset",.07f))
       IncomingGhostDiagnostic.draw(canvas,captured,width,height,inner,rotation,seam,diagnosticMode)
      }
@@ -458,9 +460,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      frame?.let{cover->if(PreviewExpansionPolicy.fresh(cover.stamp,SystemClock.elapsedRealtime()))canvas.drawBitmap(cover.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),basePaint)}
     }
     if(preview && frame!=null)canvas.drawBitmap(frame!!.bitmap,null,RectF(0f,0f,width.toFloat(),height.toFloat()),null)
-    if(amount<=.003f || (!preview && (!LiveAngles.fresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f)))){
+    if(amount<=.003f || (!preview && (!angleFresh() || !LiveAngles.effectAllowed || (!inner && targetAngle<=0f)))){
      paintedEffect=false;fallback("")
-     endpoint=!preview && inner && LiveAngles.fresh() && LiveAngles.effectAllowed && targetAngle.isFinite() && targetAngle>=FoldThreshold.sanitize(openThreshold)
+     endpoint=!preview && inner && angleFresh() && LiveAngles.effectAllowed && targetAngle.isFinite() && targetAngle>=FoldThreshold.sanitize(openThreshold)
      if(endpoint){
       val current=Point();display?.getRealSize(current)
       val content=frame
@@ -472,7 +474,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val size=Point()
     if(!preview && !frozen)CoverBridge.size(display,size)
     val live=frame
-    val liveValid=live!=null && (preview || frozen || ((live.displayId<0||live.displayId==display?.displayId)&&live.physicalId==CoverBridge.identity(display)&&live.rotation==rotation&&GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)))
+    val liveValid=live!=null && (preview || frozen || ((live.displayId<0||live.displayId==display?.displayId)&&live.physicalId==CoverBridge.identity(display)&&live.rotation==captureRotation()&&GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)))
     if(compositor && !projectedBlur.unavailable){
      applyRegionalBlur=true
      systemDraw=true;fallback("")
