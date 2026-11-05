@@ -142,7 +142,8 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         }
         compose.viewTreeObserver.addOnDrawListener{
 
-            val inner=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)>.7f
+            val ratio=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)
+        val inner=if(DeviceCompatibility.isFlip6(Build.MODEL))ratio<.7f else ratio>.7f
             val stamp=composedScreenshotStamp
             if(stamp>0L && stamp!=commitPendingStamp && stamp==HandoffFrames.forPanel(inner)?.stamp && compose.alpha>0f){
                 commitPendingStamp=stamp
