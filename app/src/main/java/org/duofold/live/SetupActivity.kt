@@ -125,7 +125,7 @@ class SetupActivity : ComponentActivity() {
       Text(ui("Make the fold yours.", "나만의 폴더블 화면을 만들어 보세요."),style=MaterialTheme.typography.headlineLarge)
       Text(ui("Setup ${stage+1} of 4", "설정 ${stage+1}단계 / 4"),style=MaterialTheme.typography.labelLarge)
       LinearProgressIndicator(progress={(stage+1)/4f},modifier=Modifier.fillMaxWidth())
-      if(!applying&&!flip6)DeviceProfileChoice{if(stage==3)go(2);message="Wallpaper profile selected. Apply required wallpapers to use it."}
+      if(!applying&&!flip6)DeviceProfileChoice{if(stage==3)go(2);message=ui("Wallpaper profile selected. Apply required wallpapers to use it.", "배경화면 프로필을 선택했습니다. 사용하려면 필요한 배경화면을 적용하세요.")}
       when(stage){
        0->{
         Text(ui("The wallpaper that powers the fold", "폴더블 동작을 지원하는 배경화면"),style=MaterialTheme.typography.headlineSmall)
@@ -148,7 +148,7 @@ class SetupActivity : ComponentActivity() {
         Button(onClick={message="";go(2)},enabled=!loading&&(!custom||hasPhoto)){Text(ui("Continue to connection", "연결 설정으로 계속"))}
        }
        2->{
-        Text(if(flip6)ui("Connect Shizuku for the Flip 6 hinge sensor", "Flip 6 힌지 센서를 위해 Shizuku 연결") else "Connect privileged access",style=MaterialTheme.typography.headlineSmall)
+        Text(if(flip6)ui("Connect Shizuku for the Flip 6 hinge sensor", "Flip 6 힌지 센서를 위해 Shizuku 연결") else ui("Connect privileged access", "권한 기반 연결 설정"),style=MaterialTheme.typography.headlineSmall)
         if(!flip6){Text(ui("FoldInteractive is part of Samsung’s built-in wallpaper system, not a separate download. Duo needs its interactive fold wallpaper on both HOME screens. Other models may not contain a compatible profile.", "FoldInteractive는 별도로 설치하는 앱이 아니라 삼성 기본 배경화면 시스템의 일부입니다. Duo가 힌지 각도를 읽으려면 양쪽 홈 화면에 인터랙티브 폴더블 배경화면이 필요합니다. 다른 모델에는 호환 프로필이 없을 수 있습니다."));RootAccessControls()}
         val rootSelected=remember { mutableStateOf(PrivilegedAccess.rootSelected()) }
         LaunchedEffect(Unit){while(true){rootSelected.value=PrivilegedAccess.rootSelected();delay(500)}}
@@ -175,7 +175,7 @@ class SetupActivity : ComponentActivity() {
          OutlinedButton(onClick={
           (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Start Shizuku",".\\adb.exe shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh"))
           Toast.makeText(this@SetupActivity,ui("Windows command copied", "Windows 명령어를 복사했습니다."),Toast.LENGTH_SHORT).show()
-         }){Text("Copy Windows start command")}
+         }){Text(ui("Copy Windows start command", "Windows 시작 명령어 복사"))}
          Text(ui("Mac / Linux: use ./adb instead of .\\adb.exe.", "Mac / Linux에서는 .\\adb.exe 대신 ./adb를 사용하세요."),style=MaterialTheme.typography.bodySmall)
         }
         OutlinedButton(onClick={open(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))}){Text(ui("Open Developer options", "개발자 옵션 열기"))}
