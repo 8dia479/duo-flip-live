@@ -12,6 +12,11 @@ public final class FlipPreviewPolicy {
   if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
   return (displayRotation + 1) % 4;
  }
+ /** Capture metadata remains in native display coordinates; only the shader uses the rotated hinge axis. */
+ public static int captureRotation(int displayRotation) {
+  if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
+  return displayRotation;
+ }
  /** Sensor events use elapsed-realtime nanoseconds. Never accept out-of-order samples. */
  public static final class Samples {
   private long timestamp;
