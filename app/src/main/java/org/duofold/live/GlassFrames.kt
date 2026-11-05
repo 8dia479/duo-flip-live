@@ -72,8 +72,14 @@ internal object GlassFrames {
   main.postDelayed({release()},1500)
  }
  private var clients=0;private val epoch=CaptureEpoch();private var pending=false
- private val surfaces=LinkedHashMap<Any,SurfaceControl>()
- fun surface(key:Any,sc:SurfaceControl?){if(sc==null)surfaces.remove(key) else surfaces[key]=sc}
+ private data class ExclusionSurface(val control:SurfaceControl,val displayId:Int)
+ private val surfaces=LinkedHashMap<Any,ExclusionSurface>()
+ fun surface(key:Any,sc:SurfaceControl?){
+  if(sc==null)surfaces.remove(key) else{
+   val displayId=(key as? android.view.View)?.display?.displayId ?: 0
+   surfaces[key]=ExclusionSurface(sc,displayId)
+  }
+ }
  private fun resetMeasurement(){measuredStart=SystemClock.elapsedRealtime();measuredFrames=0;measuredFps=0f}
  fun acquire(){clients++;if(clients==1){resetMeasurement();epoch.invalidate();main.post(tick)}}
  fun release(){clients=(clients-1).coerceAtLeast(0);if(clients==0){CoverBridge.clear();epoch.invalidate();frame=null;main.removeCallbacks(tick)}}
@@ -88,7 +94,7 @@ internal object GlassFrames {
  private val tick=object:Runnable{override fun run(){
   if(clients==0 || suspended)return
   if(pending){main.postDelayed(this,retryDelay(50));return}
-  val valid=surfaces.values.filter{it.isValid}.take(8)
+  val valid=surfaces.values.filter{it.displayId==captureDisplay && it.control.isValid}.map{it.control}.take(8)
   if(valid.isEmpty()){if(recoveryStarted>0L && recoveryFailure!="no exclusion surface"){recoveryFailure="no exclusion surface";RecoveryLog.add("Glass wake recovery waiting for exclusion surface")};frame=null;main.postDelayed(this,retryDelay(100));return}
   val started=SystemClock.elapsedRealtimeNanos();val gen=epoch.start();val captureDisplay=targetCaptureDisplay();pending=true
   executor.execute{
@@ -117,7 +123,7 @@ internal object GlassFrames {
  }}
  fun freeze(labelled:Boolean=false,done:(GlassFrame?,String)->Unit){
   val requestedAt=SystemClock.elapsedRealtime()
-  val valid=surfaces.values.filter{it.isValid}.take(8)
+  val valid=surfaces.values.filter{it.displayId==0 && it.control.isValid}.map{it.control}.take(8)
   if(valid.isEmpty()){done(null,"Waiting for overlay exclusion surface");return}
   executor.execute{
    val p=Parcel.obtain();val r=Parcel.obtain();var captured:GlassFrame?=null;var note="Outgoing capture unavailable"
