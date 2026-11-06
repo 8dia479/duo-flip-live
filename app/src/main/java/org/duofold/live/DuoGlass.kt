@@ -216,11 +216,14 @@ internal object DuoGlassShader {
  // Incoming screenshot-mode content uses the same live SurfaceView as normal mode.
  // Outgoing content and the bounded incoming remap hold use a window-buffer composite.
  val frame=frozenFrame ?: liveFrame ?: GlassFrames.frame
- val running=frozenFrame==null && amount>.003f && (if(flipMode)LiveAngles.effectFresh() || renderAlpha>.003f else LiveAngles.fresh())
+ val running=frozenFrame==null && (if(flipMode)LiveAngles.effectFresh() else amount>.003f && LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
  val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
   val panelDisplayOn=runCatching{context.getSystemService(android.hardware.display.DisplayManager::class.java).getDisplay(panelDisplayId)?.state==android.view.Display.STATE_ON}.getOrDefault(false)
-  val captureRunning=running && (!flipMode || panelDisplayOn)
+  // GlassFrames is a single-source pipeline. Let the primary host own it;
+  // secondary panel overlays consume the same outgoing frame instead of
+  // repeatedly retargeting the global capture to D0 and D1.
+  val captureRunning=running && (!flipMode || (panelDisplayOn && panelDisplayId==Display.DEFAULT_DISPLAY))
   DisposableEffect(captureRunning,panelDisplayId){
    if(captureRunning){GlassFrames.configure(context,panelDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
@@ -489,7 +492,16 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val size=Point()
     if(!preview && !frozen)CoverBridge.size(display,size)
     val live=frame
-    val liveValid=live!=null && (preview || frozen || ((live.displayId<0||live.displayId==display?.displayId)&&live.physicalId==CoverBridge.identity(display)&&live.rotation==captureRotation()&&GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)))
+    val samePanelFrame=live!=null &&
+     (live.displayId<0 || live.displayId==display?.displayId) &&
+     live.physicalId==CoverBridge.identity(display) &&
+     live.rotation==captureRotation() &&
+     GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)
+    val crossPanelAge=if(live!=null)SystemClock.elapsedRealtime()-live.stamp else Long.MAX_VALUE
+    val crossPanelProjection=previewFlip && live!=null &&
+     live.displayId in 0..1 && display?.displayId in 0..1 &&
+     live.physicalId!="unknown" && LiveEffectFadePolicy.active(crossPanelAge)
+    val liveValid=live!=null && (preview || frozen || samePanelFrame || crossPanelProjection)
     if(compositor && !projectedBlur.unavailable){
      applyRegionalBlur=true
      systemDraw=true;fallback("")
@@ -518,7 +530,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      }
      val fallback=FlipPreviewPolicy.singlePanelFallback(inner,width,height)
      // Match the live cover mirror exactly so blur never jumps between two content crops.
-     val projectedCover=!inner && minOf(f.width,f.height).toFloat()/maxOf(f.width,f.height)>.7f
+     val projectedCover=!inner && (f.width!=size.x || f.height!=size.y)
      val fit=if(projectedCover)LiveMirrorLayout.fill(f.bitmap.width,f.bitmap.height,width,height) else null
      val scale=fit?.get(0) ?: if(fallback)minOf(width.toFloat()/f.bitmap.width,height.toFloat()/f.bitmap.height) else 0f
      val ew=if(fallback || projectedCover)f.bitmap.width*scale else width.toFloat();val eh=if(fallback || projectedCover)f.bitmap.height*scale else height.toFloat()
