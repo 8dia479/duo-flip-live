@@ -103,7 +103,14 @@ internal class FlipSamsungAngleSource(
                 worker?.postDelayed(this, POLL_INTERVAL_MS)
                 return
             }
-            val diagnostics = result.getString("recentLines").orEmpty()
+            val diagnostics = buildString {
+                append(result.getString("recentLines").orEmpty())
+                val panelState = result.getString("panelState").orEmpty()
+                if (panelState.isNotBlank()) {
+                    if (isNotEmpty()) append('\n')
+                    append("Panel state: ").append(panelState)
+                }
+            }
             if (diagnostics.isNotBlank() && diagnostics != lastDiagnostics) {
                 lastDiagnostics = diagnostics
                 main.post { if (active) onDiagnostics(diagnostics) }
