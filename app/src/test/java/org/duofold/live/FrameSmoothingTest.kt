@@ -9,6 +9,21 @@ class FrameSmoothingTest {
   fun run(hz:Int):Float{var a=0f;repeat(hz/5){a=FrameSmoothing.step(a,170f,1000f/hz)};return a}
   assertEquals(run(60),run(120),.02f)
  }
+ @Test fun vsyncFramesInterpolateBetweenFortyMillisecondSensorSamples(){
+  var rendered=0f
+  var target=0f
+  val samples=listOf(0f,24f,51f,79f,108f)
+  var sampleIndex=0
+  val frames=mutableListOf<Float>()
+  for(frame in 0..48){
+   if(frame%5==0 && sampleIndex<samples.size)target=samples[sampleIndex++]
+   rendered=FrameSmoothing.step(rendered,target,1000f/120f,30f)
+   frames+=rendered
+  }
+  assertTrue("intermediate vsync positions should exist",frames.any{it>0f&&it<24f})
+  assertTrue("motion should remain monotonic for a steady opening",frames.zipWithNext().all{(a,b)->b>=a})
+  assertTrue(rendered>100f)
+ }
  @Test fun directionChangesDoNotOvershoot(){var a=100f;repeat(30){a=FrameSmoothing.step(a,20f,8.33f);assertTrue(a in 20f..100f)};val prior=a;a=FrameSmoothing.step(a,150f,8.33f);assertTrue(a in prior..150f)}
  @Test fun initializesWithoutAnimatingFromUnknown(){assertEquals(80f,FrameSmoothing.step(Float.NaN,80f,8f),0f)}
 }
