@@ -40,7 +40,10 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     // Fold-oriented 120ms easing which visibly trails a fast clamshell movement.
     val smoothingMs=if(flipMode)minOf(configuredSmoothingMs,FrameSmoothing.FAST_MS) else configuredSmoothingMs
     val displayRotation=LocalView.current.display?.rotation ?: Surface.ROTATION_0
-    val rotation=if(flipMode)FlipPreviewPolicy.liveShaderRotation(displayRotation) else displayRotation
+    val rotation=if(flipMode) {
+        if(expanded) FlipPreviewPolicy.liveShaderRotation(displayRotation)
+        else FlipPreviewPolicy.coverShaderRotation(displayRotation)
+    } else displayRotation
     val hinge=LocalHinge.current
     val latestExpanded by rememberUpdatedState(expanded)
     val lifecycle=LocalLifecycleOwner.current.lifecycle
