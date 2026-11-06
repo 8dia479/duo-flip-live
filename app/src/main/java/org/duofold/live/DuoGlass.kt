@@ -591,7 +591,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      shader.setFloatUniform("horizontal",if(rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_270)1f else 0f)
      shader.setFloatUniform("reverse",if(rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_180)1f else 0f)
      paint.shader=shader
-     val upperHalfOnly=previewFlip && LiveAngles.externalDirection()<0
+     val upperHalfOnly=previewFlip && inner && LiveAngles.externalDirection()<0
      if(upperHalfOnly){
       val save=canvas.save()
       canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
