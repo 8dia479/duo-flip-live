@@ -129,7 +129,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
                 resumeIfUsable()
             }else{
                 val stillAwake=getSystemService(PowerManager::class.java).isInteractive
-                if(stillAwake && attempt<10){
+                if(stillAwake && attempt<30){
                     settleFlipPanelScreenOff(attempt+1)
                 }else{
                     GlassFrames.suspendCapture()
