@@ -113,7 +113,9 @@ createNotificationChannel(this);}
    else if(flip6){
     if(now>=nextFlip6ReaderAttempt&&(flip6Runtime==null||!LiveAngles.effectFresh())){
      if(flip6Runtime!=null)stopFlip6Runtime("Reconnecting to Flip 6 hinge sensor");
-     nextFlip6ReaderAttempt=now+8000L;
+     // The HAL stream can disconnect while the app is backgrounded.
+     // Retry promptly; the service remains foreground and supervises the reader.
+     nextFlip6ReaderAttempt=now+2500L;
      flip6Runtime=new Flip6LiveRuntime(FoldBackgroundService.this);
      flip6Runtime.start();
     }
