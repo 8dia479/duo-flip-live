@@ -37,6 +37,7 @@ public final class FlipSensorHalReader extends Binder {
     private static final int MAX_DIAGNOSTIC_LINES = 20;
     private final ArrayDeque<String> recentLines = new ArrayDeque<>();
     private GlassCapture capture;
+    private final FlipPanelStateController panelState = new FlipPanelStateController();
 
     public FlipSensorHalReader() {
         attachInterface(null, DESCRIPTOR);
@@ -98,12 +99,14 @@ public final class FlipSensorHalReader extends Binder {
                 : -1L);
         result.putString("lastLine", lastLine);
         result.putString("recentLines", recentLinesText());
+        result.putString("panelState", panelState.status());
         return result;
     }
 
     private synchronized void startReader() {
         if (process != null) return;
         final int currentGeneration = ++generation;
+        panelState.start();
         angle = Float.NaN;
         timestampNanos = 0L;
         source = -1;
@@ -163,6 +166,7 @@ public final class FlipSensorHalReader extends Binder {
                             sequence++;
                             parsedLines++;
                             state = "receiving";
+                            panelState.update(sample.angle);
                         }
                     }
                 }
@@ -194,6 +198,7 @@ public final class FlipSensorHalReader extends Binder {
 
     private synchronized void stopReader() {
         generation++;
+        panelState.resetAndWait();
         java.lang.Process child = process;
         process = null;
         if (child != null) child.destroy();
