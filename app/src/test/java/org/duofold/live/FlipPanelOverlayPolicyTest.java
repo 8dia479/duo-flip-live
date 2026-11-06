@@ -15,8 +15,8 @@ public class FlipPanelOverlayPolicyTest {
         assertFalse(FlipPanelOverlayPolicy.shouldRetain(true, true, true, false));
     }
 
-    @Test public void hideOverlayOnlyWhenDisplayIsOffOrDeviceSleeps() {
-        assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(false, true, true));
+    @Test public void keepOverlayVisibleDuringPanelPowerHandoffButNotDeviceSleep() {
+        assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(false, true, true));
         assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(true, false, true));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, false));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, true));
