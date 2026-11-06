@@ -516,7 +516,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
        shader.setInputShader("mip$i",map)
       }
      }
-     val fallback=FlipPreviewPolicy.singlePanelFallback(inner,f.width,f.height)
+     val fallback=FlipPreviewPolicy.singlePanelFallback(inner,width,height)
      // Match the live cover mirror exactly so blur never jumps between two content crops.
      val projectedCover=!inner && minOf(f.width,f.height).toFloat()/maxOf(f.width,f.height)>.7f
      val fit=if(projectedCover)LiveMirrorLayout.fill(f.bitmap.width,f.bitmap.height,width,height) else null
