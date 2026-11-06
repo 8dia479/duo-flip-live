@@ -229,9 +229,10 @@ internal object DuoGlassShader {
   }.getOrDefault(-1)
   // Exactly one overlay owns capture: prefer D0 when both panels are on,
   // otherwise let the only lit built-in panel maintain the live source.
+  val captureTargetDisplayId=if(flipMode)captureDisplayId else panelDisplayId
   val captureRunning=running && (!flipMode || panelDisplayId==captureDisplayId)
-  DisposableEffect(captureRunning,captureDisplayId){
-   if(captureRunning){GlassFrames.configure(context,captureDisplayId);GlassFrames.acquire()}
+  DisposableEffect(captureRunning,captureTargetDisplayId){
+   if(captureRunning){GlassFrames.configure(context,captureTargetDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
   }
  if(opaqueContent && frozenFrame!=null){
