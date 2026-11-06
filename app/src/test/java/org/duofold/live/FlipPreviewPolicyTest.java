@@ -40,6 +40,12 @@ public class FlipPreviewPolicyTest {
   assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 0, 720));
  }
 
+ @Test public void singlePanelFallbackUsesDestinationGeometryNotSourceBitmap() {
+  // A cover screenshot can be landscape, while the destination is the tall inner panel.
+  assertTrue(FlipPreviewPolicy.singlePanelFallback(true, 1080, 2640));
+  assertFalse(FlipPreviewPolicy.singlePanelFallback(true, 748, 720));
+  assertFalse(FlipPreviewPolicy.singlePanelFallback(false, 1080, 2640));
+ }
  @Test public void liveShaderUsesTopDownPreviewOrientation() {
   assertEquals(3,FlipPreviewPolicy.liveShaderRotation(0));
   assertEquals(0,FlipPreviewPolicy.liveShaderRotation(1));
