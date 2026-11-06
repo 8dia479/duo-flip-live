@@ -7,13 +7,16 @@ import java.util.ArrayList;
 final class CompositorBlurRegions {
  static float radius(float value){return Float.isFinite(value)?Math.max(0,Math.min(500,value)):250;}
  static float[][] build(int width,int height,boolean inner,int rotation,float progress,float requested,float strength){
+  return build(width,height,inner,rotation,progress,requested,strength,false);
+ }
+ static float[][] build(int width,int height,boolean inner,int rotation,float progress,float requested,float strength,boolean upperHalfOnly){
   if(width<=0 || height<=0 || !Float.isFinite(progress) || !Float.isFinite(strength))return new float[0][];
   float p=Math.max(0,Math.min(1,progress));
   if(p<=.003f || strength<=0)return new float[0][];
   float motion=p*p*(3-2*p);
   // Reach leads strength: spread farther at the same hinge angle, without crossing the seam.
   float sweep=Math.min(1,p*1.5f);
-  float reach=(inner?.5f:1f)*sweep*sweep*(3-2*sweep);
+  float reach=(upperHalfOnly?.5f:(inner?.5f:1f))*sweep*sweep*(3-2*sweep);
   float peak=Math.min(500,radius(requested)*Math.min(3,strength/.4f))*motion;
   boolean horizontal=rotation==1 || rotation==3,reverse=rotation==1 || rotation==2;
   ArrayList<float[]> regions=new ArrayList<>();
@@ -29,8 +32,8 @@ final class CompositorBlurRegions {
    double t=i==0?0:(i+.5)/strips;
    double x=t*t;
    float alpha=(float)(1-x*x*x*(x*(x*6-15)+10));
-   float from=inner?low:1-high,to=inner?high:1-low;
-   if(reverse){float old=from;from=1-to;to=1-old;}
+   float from=(upperHalfOnly||inner)?low:1-high,to=(upperHalfOnly||inner)?high:1-low;
+   if(reverse && !upperHalfOnly){float old=from;from=1-to;to=1-old;}
    // Radius, alpha, left, top, right, bottom, four corner radii (AOSP JNI layout).
    regions.add(new float[]{blur,alpha,horizontal?0:from*width,horizontal?from*height:0,
      horizontal?width:to*width,horizontal?to*height:height,0,0,0,0});
