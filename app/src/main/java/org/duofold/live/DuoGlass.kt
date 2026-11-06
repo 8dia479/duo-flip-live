@@ -470,12 +470,16 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    var applyRegionalBlur=false
    projectedDraw=false
    val rendering=GlassRenderOptions.mode(context)
-   val regionalCompositor=(rendering=="system" || rendering=="system_projected") && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
-   val projectedCompositor=regionalCompositor && rendering=="system_projected"
+   val keyguardLocked=previewFlip && context.getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked
+   // Secure keyguard layers cannot be read back as screenshots. Use Samsung's
+   // compositor background blur on the lock screen instead of waiting for a
+   // protected capture that Android will never provide.
+   val regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
+   val projectedCompositor=regionalCompositor && rendering=="system_projected" && !keyguardLocked
    if(!regionalCompositor)projectedBlur.clear()
    try{
     systemDraw=false
-    val compositor=regionalCompositor && rendering=="system"
+    val compositor=regionalCompositor && (rendering=="system" || keyguardLocked)
     canvas.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR)
     if(windowCanvas==null)canvas.scale(canvas.width.toFloat()/width,canvas.height.toFloat()/height)
     if(diagnosticMode!=0 && windowCanvas==null && !preview && !frozen && display?.displayId==IncomingAnimationFrame.captureDisplay){
