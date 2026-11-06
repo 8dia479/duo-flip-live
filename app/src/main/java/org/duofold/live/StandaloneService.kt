@@ -96,8 +96,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         if(i.action==Intent.ACTION_SCREEN_OFF){
             GlassFrames.suspendCapture()
             val possibleFlipSwap=DeviceCompatibility.isFlip6(Build.MODEL) &&
-                getSystemService(PowerManager::class.java).isInteractive &&
-                !getSystemService(KeyguardManager::class.java).isKeyguardLocked
+                getSystemService(PowerManager::class.java).isInteractive
             if(possibleFlipSwap){
                 // Keep Compose alive while Samsung routes power from the outgoing panel
                 // to the incoming one. A short polling window avoids a false screen-off
@@ -129,8 +128,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
                 refreshSecondary()
                 resumeIfUsable()
             }else{
-                val stillAwake=getSystemService(PowerManager::class.java).isInteractive &&
-                    !getSystemService(KeyguardManager::class.java).isKeyguardLocked
+                val stillAwake=getSystemService(PowerManager::class.java).isInteractive
                 if(stillAwake && attempt<10){
                     settleFlipPanelScreenOff(attempt+1)
                 }else{
@@ -146,15 +144,16 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     private fun flipPanelHandoffActive():Boolean {
         if(!DeviceCompatibility.isFlip6(Build.MODEL) || !::displays.isInitialized)return false
         val interactive=getSystemService(PowerManager::class.java).isInteractive
-        val unlocked=!getSystemService(KeyguardManager::class.java).isKeyguardLocked
+        val keyguardLocked=getSystemService(KeyguardManager::class.java).isKeyguardLocked
         val primaryOff=displays.getDisplay(Display.DEFAULT_DISPLAY)?.state==Display.STATE_OFF
         val secondaryOn=displays.displays.any{it.displayId==1 && BuiltInPanel.accepts(it) && it.state==Display.STATE_ON}
-        return FlipPanelOverlayPolicy.isPanelHandoff(true,interactive,unlocked,primaryOff,secondaryOn)
+        return FlipPanelOverlayPolicy.isPanelHandoff(true,interactive,!keyguardLocked,primaryOff,secondaryOn)
     }
     private val motionListener=LiveAngles.Listener { value,_ -> MotionGlass.angle(value);if(settings().getBoolean("motion_glass",true) || settings().getBoolean("motion_glass_cover_enabled",false))MotionGlass.refresh(this,motionUsable()) }
     private fun usable():Boolean {
-        if(!RuntimeConsent.ready(this) || !::displays.isInitialized ||
-            getSystemService(KeyguardManager::class.java).isKeyguardLocked)return false
+        if(!RuntimeConsent.ready(this) || !::displays.isInitialized)return false
+        val locked=getSystemService(KeyguardManager::class.java).isKeyguardLocked
+        if(locked && !DeviceCompatibility.isFlip6(Build.MODEL))return false
         if(displays.getDisplay(Display.DEFAULT_DISPLAY)?.state==Display.STATE_ON || flipPanelHandoffActive())return true
         return flipPanelHandoffPending && getSystemService(PowerManager::class.java).isInteractive
     }
@@ -281,7 +280,8 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
             hide();this.strength=0f;return
         }
         transientOffStarted=0L
-        val inner=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)>.7f
+        val ratio=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)
+        val inner=if(DeviceCompatibility.isFlip6(Build.MODEL))ratio<.7f else ratio>.7f
         val held=settings().getBoolean("dual",false)&&settings().getBoolean("screenshot_camera_startup",false)&&HandoffFrames.forPanel(inner)!=null
         view?.alpha=if(held || active && (liveVeil || image!=null))1f else 0f
         if(!inner && view?.alpha==1f)CoverStartupTrace.reveal()
