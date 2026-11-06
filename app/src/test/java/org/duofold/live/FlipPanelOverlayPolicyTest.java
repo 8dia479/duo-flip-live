@@ -21,4 +21,16 @@ public class FlipPanelOverlayPolicyTest {
         assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(true, true, false));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, true));
     }
+    @Test public void activeFlipPanelSwapIsNotTreatedAsScreenOff() {
+        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, true, true));
+    }
+
+    @Test public void realScreenOffOrLockedStateIsNotAPanelHandoff() {
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, false, true, true, true));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, false, true, true));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, false, true));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, true, false));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(false, true, true, true, true));
+    }
+
 }
