@@ -82,7 +82,27 @@ internal object GlassFrames {
  }
  private fun resetMeasurement(){measuredStart=SystemClock.elapsedRealtime();measuredFrames=0;measuredFps=0f}
  fun acquire(){clients++;if(clients==1){resetMeasurement();epoch.invalidate();main.post(tick)}}
- fun release(){clients=(clients-1).coerceAtLeast(0);if(clients==0){CoverBridge.clear();epoch.invalidate();frame=null;main.removeCallbacks(tick)}}
+ fun release(){
+  clients=(clients-1).coerceAtLeast(0)
+  if(clients==0){
+   epoch.invalidate();main.removeCallbacks(tick)
+   if(DeviceCompatibility.isFlip6(android.os.Build.MODEL)){
+    val held=frame
+    if(held!=null){
+     val remaining=(LiveEffectFadePolicy.HOLD_MS+LiveEffectFadePolicy.FADE_MS-
+       (SystemClock.elapsedRealtime()-held.stamp)).coerceAtLeast(0L)+16L
+     main.postDelayed({
+      if(clients==0 && frame===held &&
+         !LiveEffectFadePolicy.active(SystemClock.elapsedRealtime()-held.stamp)){
+       CoverBridge.clear();frame=null
+      }
+     },remaining)
+    }
+   }else{
+    CoverBridge.clear();frame=null
+   }
+  }
+ }
  private var urgentUntil=0L
  fun requestFreshCapture(){
   if(!epoch.requestFresh()){coalesced++;return}
