@@ -389,9 +389,10 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   frameQueued=false
   if(holder.surface.isValid && dirty){
    dirty=false
-   // Flip's Compose timeline is the sole interpolator; don't run a second
-   // SurfaceView hinge smoother that can race AndroidView updates at handoff.
-   if(!preparedStandby && !preview && !previewFlip && targetAngle.isFinite() && angleFresh()){
+   // HAL samples arrive around every 40 ms. Interpolate them on every
+   // display vsync so the glass motion stays fluid at 60/120 Hz instead of
+   // exposing the sensor's lower and occasionally irregular sample cadence.
+   if(!preparedStandby && !preview && targetAngle.isFinite() && angleFresh()){
     val dt=if(lastFrameNanos==0L)8.33f else ((now-lastFrameNanos)/1_000_000f).coerceIn(1f,50f)
     if(!renderedAngle.isFinite() && !inner && targetAngle<=12f && context.getSharedPreferences("standalone",0).getBoolean("window_reveal_v2",true) && context.getSharedPreferences("standalone",0).getBoolean("startup_easing",true))renderedAngle=0f
     renderedAngle=FrameSmoothing.step(renderedAngle,targetAngle,dt,smoothingMs)
