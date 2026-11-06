@@ -221,14 +221,21 @@ internal object DuoGlassShader {
  val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
   val captureDisplayId=runCatching{
    val manager=context.getSystemService(android.hardware.display.DisplayManager::class.java)
-   when {
-    manager.getDisplay(Display.DEFAULT_DISPLAY)?.state==android.view.Display.STATE_ON -> Display.DEFAULT_DISPLAY
-    manager.getDisplay(1)?.state==android.view.Display.STATE_ON -> 1
-    else -> -1
+   val direction=LiveAngles.externalDirection()
+   // While closing, capture the cover panel's own launcher/home screen.
+   // While opening, capture the inner panel. Never stretch one panel's
+   // screenshot onto the other panel.
+   val preferInner=direction>0 || (direction==0 && LiveAngles.currentAngle()>=90f)
+   val active=manager.displays.filter{it.displayId in 0..1 && it.state==android.view.Display.STATE_ON}
+   val preferred=active.firstOrNull{panel->
+    val ratio=minOf(panel.mode.physicalWidth,panel.mode.physicalHeight).toFloat()/
+      maxOf(panel.mode.physicalWidth,panel.mode.physicalHeight)
+    (ratio<.7f)==preferInner
    }
+   preferred?.displayId ?: active.firstOrNull()?.displayId ?: -1
   }.getOrDefault(-1)
-  // Exactly one overlay owns capture: prefer D0 when both panels are on,
-  // otherwise let the only lit built-in panel maintain the live source.
+  // Exactly one overlay owns capture: choose the physical panel matching the
+  // hinge direction, then fall back to the only lit built-in panel.
   val captureTargetDisplayId=if(flipMode)captureDisplayId else panelDisplayId
   val captureRunning=running && (!flipMode || panelDisplayId==captureDisplayId)
   DisposableEffect(captureRunning,captureTargetDisplayId){
