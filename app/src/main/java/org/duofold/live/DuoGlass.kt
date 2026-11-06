@@ -219,13 +219,19 @@ internal object DuoGlassShader {
  val running=frozenFrame==null && (if(flipMode)LiveAngles.effectFresh() else amount>.003f && LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
  val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
-  val panelDisplayOn=runCatching{context.getSystemService(android.hardware.display.DisplayManager::class.java).getDisplay(panelDisplayId)?.state==android.view.Display.STATE_ON}.getOrDefault(false)
-  // GlassFrames is a single-source pipeline. Let the primary host own it;
-  // secondary panel overlays consume the same outgoing frame instead of
-  // repeatedly retargeting the global capture to D0 and D1.
-  val captureRunning=running && (!flipMode || (panelDisplayOn && panelDisplayId==Display.DEFAULT_DISPLAY))
-  DisposableEffect(captureRunning,panelDisplayId){
-   if(captureRunning){GlassFrames.configure(context,panelDisplayId);GlassFrames.acquire()}
+  val captureDisplayId=runCatching{
+   val manager=context.getSystemService(android.hardware.display.DisplayManager::class.java)
+   when {
+    manager.getDisplay(Display.DEFAULT_DISPLAY)?.state==android.view.Display.STATE_ON -> Display.DEFAULT_DISPLAY
+    manager.getDisplay(1)?.state==android.view.Display.STATE_ON -> 1
+    else -> -1
+   }
+  }.getOrDefault(-1)
+  // Exactly one overlay owns capture: prefer D0 when both panels are on,
+  // otherwise let the only lit built-in panel maintain the live source.
+  val captureRunning=running && (!flipMode || panelDisplayId==captureDisplayId)
+  DisposableEffect(captureRunning,captureDisplayId){
+   if(captureRunning){GlassFrames.configure(context,captureDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
   }
  if(opaqueContent && frozenFrame!=null){
