@@ -51,7 +51,12 @@ public class AngleReader extends Binder {
    float fadeGradualness=data.dataAvail()>=4?data.readFloat():FadeSettings.DEFAULT_GRADUALNESS;
    String mode=data.dataAvail()>0?AnimationModePolicy.sanitize(data.readString()):AnimationModePolicy.DEFAULT;
    boolean debug=data.dataAvail()>=4&&data.readInt()!=0;
-   float handoffAngle=HandoffSettings.angle(data.dataAvail()>=4?data.readFloat():HandoffSettings.DEFAULT);
+   float configuredHandoffAngle=HandoffSettings.angle(data.dataAvail()>=4?data.readFloat():HandoffSettings.DEFAULT);
+   // Flip's stock panel switch becomes visible around 90 degrees. Request the
+   // destination posture earlier so our projected live frame is already running
+   // before Samsung's default panel handoff can expose a black transition.
+   float handoffAngle=DeviceCompatibility.isFlip6(Build.MODEL)
+     ? Math.min(configuredHandoffAngle,HandoffSettings.MIN) : configuredHandoffAngle;
    boolean screenshotStartup=data.dataAvail()>=4&&data.readInt()!=0;boolean screenshotPrepared=data.dataAvail()>=4&&data.readInt()!=0;
    concurrent.powerOverrideEnabled(data.dataAvail()>=4&&data.readInt()!=0);
    if(data.dataAvail()>=4)data.readInt(); // Reserved former closing-power slot.
