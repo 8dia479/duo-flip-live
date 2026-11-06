@@ -21,6 +21,21 @@ public class CompositorBlurRegionsTest {
   assertTrue(leftmost(early)>leftmost(late));assertEquals(1000,early[0][4],0);
   assertEquals(leftmost(early),leftmost(CompositorBlurRegions.build(1000,1000,false,0,.2f,120,.4f)),0);
  }
+ @Test public void foldingFlipCanLimitEffectToUpperHalfOnly(){
+  float[][] regions=CompositorBlurRegions.build(1200,1800,false,0,.9f,120,.4f,true);
+  assertEquals(65,regions.length);
+  for(float[] r:regions){
+   assertTrue(r[2]>=0&&r[3]>=0);
+   assertTrue("upper-half effect must not cross the horizontal midpoint",r[5]<=900);
+   assertTrue(r[4]<=1200);
+  }
+ }
+ @Test public void upperHalfLimitDoesNotChangeNormalCoverRendering(){
+  float[][] normal=CompositorBlurRegions.build(1200,1800,false,0,.9f,120,.4f);
+  float[][] limited=CompositorBlurRegions.build(1200,1800,false,0,.9f,120,.4f,true);
+  assertTrue(normal[0][5]>900);
+  assertTrue(limited[0][5]<=900);
+ }
  @Test public void strongerBlurChangesRadiusNotMaskOrAlpha(){
   float[][] weak=CompositorBlurRegions.build(1000,1000,true,0,1,100,.4f);
   float[][] strong=CompositorBlurRegions.build(1000,1000,true,0,1,200,.4f);
