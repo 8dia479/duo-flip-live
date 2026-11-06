@@ -52,5 +52,11 @@ public class FlipPreviewPolicyTest {
   assertEquals(1,FlipPreviewPolicy.liveShaderRotation(2));
   assertEquals(2,FlipPreviewPolicy.liveShaderRotation(3));
  }
+
+ @Test public void coverTransitionAlwaysUsesCameraUpOrientation() {
+  for(int rotation=0;rotation<4;rotation++) {
+   assertEquals(3,FlipPreviewPolicy.coverShaderRotation(rotation));
+  }
+ }
  @Test(expected=IllegalArgumentException.class) public void invalidRotationRejected(){FlipPreviewPolicy.shaderRotation(-1);}
 }
