@@ -15,10 +15,10 @@ public class FlipPanelOverlayPolicyTest {
         assertFalse(FlipPanelOverlayPolicy.shouldRetain(true, true, true, false));
     }
 
-    @Test public void hideButDoNotDisposeOverlayWhileDisplayIsOffOrLocked() {
+    @Test public void hideOverlayOnlyWhenDisplayIsOffOrDeviceSleeps() {
         assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(false, true, true));
         assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(true, false, true));
-        assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(true, true, false));
+        assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, false));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, true));
     }
     @Test public void activeFlipPanelSwapIsNotTreatedAsScreenOff() {
@@ -27,7 +27,7 @@ public class FlipPanelOverlayPolicyTest {
 
     @Test public void realScreenOffOrLockedStateIsNotAPanelHandoff() {
         assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, false, true, true, true));
-        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, false, true, true));
+        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, true, false, true, true));
         assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, false, true));
         assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, true, false));
         assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(false, true, true, true, true));
