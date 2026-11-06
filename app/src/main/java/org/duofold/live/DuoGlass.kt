@@ -504,11 +504,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      live.physicalId==CoverBridge.identity(display) &&
      live.rotation==captureRotation() &&
      GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)
-    val crossPanelAge=if(live!=null)SystemClock.elapsedRealtime()-live.stamp else Long.MAX_VALUE
-    val crossPanelProjection=previewFlip && live!=null &&
-     live.displayId in 0..1 && display?.displayId in 0..1 &&
-     live.physicalId!="unknown" && LiveEffectFadePolicy.active(crossPanelAge)
-    val liveValid=live!=null && (preview || frozen || samePanelFrame || crossPanelProjection)
+    // Never project the inner-display screenshot onto the cover panel.
+    // The cover's own launcher/home screen remains the compositor backdrop.
+    val liveValid=live!=null && (preview || frozen || samePanelFrame)
     if(compositor && !projectedBlur.unavailable){
      applyRegionalBlur=true
      systemDraw=true;fallback("")
@@ -580,7 +578,14 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      shader.setFloatUniform("inner",if(inner)1f else 0f);shader.setFloatUniform("fallback",if(fallback)1f else 0f)
      shader.setFloatUniform("horizontal",if(rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_270)1f else 0f)
      shader.setFloatUniform("reverse",if(rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_180)1f else 0f)
-     paint.shader=shader;drawGlass(canvas,aaMode,RenderQuality.antialias(quality.getFloat("antialias_strength",.35f)))
+     paint.shader=shader
+     val upperHalfOnly=previewFlip && LiveAngles.externalDirection()<0
+     if(upperHalfOnly){
+      val save=canvas.save()
+      canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
+      drawGlass(canvas,aaMode,RenderQuality.antialias(quality.getFloat("antialias_strength",.35f)))
+      canvas.restoreToCount(save)
+     }else drawGlass(canvas,aaMode,RenderQuality.antialias(quality.getFloat("antialias_strength",.35f)))
      if(regionalCompositor)applyRegionalBlur=true
      if(bridge!=null){
       bridgeDraw=true
@@ -607,7 +612,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     if(regionalCompositor){
      val quality=context.getSharedPreferences("standalone",0)
      val progress=if(inner)amount else if(hingeAngle.isFinite())hingeAngle/90f else amount*110f/90f
-     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,rotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity) else emptyArray<FloatArray>()
+     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,rotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity,previewFlip && LiveAngles.externalDirection()<0) else emptyArray<FloatArray>()
      if(quality.getBoolean("notification_blur_solid_mask",false))regions.forEach{it[1]=1f}
      val accepted=projectedBlur.apply(surfaceControl,canvas.width,canvas.height,display,regions){applyTransactionToFrame(it)}
      projectedDraw=projectedCompositor && accepted && applyRegionalBlur
