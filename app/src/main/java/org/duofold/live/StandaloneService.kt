@@ -94,7 +94,6 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     private val screenReceiver=object:BroadcastReceiver(){override fun onReceive(c:Context,i:Intent){
         RecoveryLog.add("Overlay received ${i.action}");diagnosticState("broadcast ${i.action}",true)
         if(i.action==Intent.ACTION_SCREEN_OFF){
-            GlassFrames.suspendCapture()
             val possibleFlipSwap=DeviceCompatibility.isFlip6(Build.MODEL) &&
                 getSystemService(PowerManager::class.java).isInteractive
             if(possibleFlipSwap){
@@ -104,6 +103,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
                 flipPanelHandoffPending=true
                 settleFlipPanelScreenOff(0)
             }else{
+                GlassFrames.suspendCapture()
                 flipPanelHandoffPending=false
                 handler.postDelayed({if(!usable())HandoffFrames.clear()},300)
                 owner?.registry?.currentState=Lifecycle.State.CREATED
@@ -316,7 +316,11 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         val display=displays.getDisplay(0)?:return
         // OFF snapshots may contain the previous panel's dimensions. Keep the prepared
         // live host until ON, then adapt it instead of compiling a new renderer.
-        val liveRetention=LiveHostRetentionPolicy.eligible(
+        val flipLiveRetention=DeviceCompatibility.isFlip6(Build.MODEL) &&
+            !settings().getBoolean("dual",false) && !settings().getBoolean("debug_mode",false) &&
+            settings().getString("animation_mode",AnimationModePolicy.DEFAULT)==AnimationModePolicy.DEFAULT &&
+            LiveAngles.effectFresh() && LiveAngles.effectAllowed
+        val liveRetention=if(DeviceCompatibility.isFlip6(Build.MODEL))flipLiveRetention else LiveHostRetentionPolicy.eligible(
             settings().getBoolean("dual",false),settings().getBoolean("debug_mode",false),
             settings().getString("animation_mode",AnimationModePolicy.DEFAULT)==AnimationModePolicy.DEFAULT,
             LiveAngles.fresh(),LiveAngles.effectAllowed,
