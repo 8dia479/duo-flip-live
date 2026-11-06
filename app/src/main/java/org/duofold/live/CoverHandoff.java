@@ -70,14 +70,21 @@ final class CoverHandoff {
  String status="Normal display control";
  private void init()throws Exception{
   if(manager!=null)return;
-  DeviceCompatibility.requireEligible(Build.MODEL, Build.VERSION.SDK_INT);
+  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
+  // Fold uses concurrent inner/outer postures. Flip has one concurrent-inner
+  // posture and a CLOSED cover posture; discover both by name at runtime.
+  // Keep Fold's stricter model/SDK gate unchanged.
+  if(!flip6)DeviceCompatibility.requireEligible(Build.MODEL, Build.VERSION.SDK_INT);
   Class<?> type=Class.forName("android.hardware.devicestate.DeviceStateManager");
   Object candidate=type.getConstructor().newInstance();
   for(Object state:(List<?>)type.getMethod("getSupportedDeviceStates").invoke(candidate)){
-   if("CONCURRENT_INNER_DEFAULT".equals(state.getClass().getMethod("getName").invoke(state)))innerId=(int)state.getClass().getMethod("getIdentifier").invoke(state);
-   if("CONCURRENT_OUTER_DEFAULT".equals(state.getClass().getMethod("getName").invoke(state)))coverId=(int)state.getClass().getMethod("getIdentifier").invoke(state);
+   String name=String.valueOf(state.getClass().getMethod("getName").invoke(state));
+   int identifier=(int)state.getClass().getMethod("getIdentifier").invoke(state);
+   if("CONCURRENT_INNER_DEFAULT".equals(name))innerId=identifier;
+   if(flip6 ? ("CLOSED".equals(name)||"FOLDED".equals(name)) : "CONCURRENT_OUTER_DEFAULT".equals(name))coverId=identifier;
   }
-  if(coverId<0)throw new IllegalStateException("Cover state missing");
+  if(coverId<0)throw new IllegalStateException(flip6?"Flip closed/cover state missing":"Cover state missing");
+  if(flip6 && innerId<0)throw new IllegalStateException("Flip concurrent inner state missing");
   requestType=Class.forName("android.hardware.devicestate.DeviceStateRequest");
   callbackType=Class.forName("android.hardware.devicestate.DeviceStateRequest$Callback");
   request=type.getMethod("requestState",requestType,Executor.class,callbackType);cancel=type.getMethod("cancelStateRequest");manager=candidate;
