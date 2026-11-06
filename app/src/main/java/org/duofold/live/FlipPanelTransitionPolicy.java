@@ -9,7 +9,6 @@ public final class FlipPanelTransitionPolicy {
     private static final float OPEN_DUAL_AT = 1.8f;
     private static final float CLOSE_TO_COVER_AT = 0.8f;
     private static final float RELEASE_DUAL_AT = 179.5f;
-    private static final float REENTER_DUAL_BELOW = 177.5f;
 
     private FlipPanelTransitionPolicy() {}
 
@@ -25,7 +24,7 @@ public final class FlipPanelTransitionPolicy {
         }
 
         if (current == CLOSED) {
-            if (value >= REENTER_DUAL_BELOW && value < 180f) return AUTO;
+            if (value >= RELEASE_DUAL_AT) return AUTO;
             if (value > OPEN_DUAL_AT) return DUAL;
             return CLOSED;
         }
