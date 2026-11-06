@@ -23,7 +23,7 @@ internal class Flip6LiveRuntime(context: Context) {
             onStatus = { message ->
                 if (!LiveAngles.fresh()) LiveAngles.status = message
             },
-            onDiagnostics = {},
+            onDiagnostics = { message -> LiveAngles.handoffStatus = message },
             onCaptureBinder = { binder: IBinder -> LiveAngles.setExternalCaptureBinder(binder) }
         )
         source = next
