@@ -86,7 +86,10 @@ internal object GlassFrames {
  private var urgentUntil=0L
  fun requestFreshCapture(){
   if(!epoch.requestFresh()){coalesced++;return}
-  frame=null;urgentUntil=SystemClock.elapsedRealtime()+900
+  // Keep the outgoing Flip image available while the primary display is remapped
+  // and a fresh capture is being prepared for the newly active panel.
+  if(!DeviceCompatibility.isFlip6(android.os.Build.MODEL))frame=null
+  urgentUntil=SystemClock.elapsedRealtime()+900
   main.removeCallbacks(tick)
   if(clients>0 && !suspended)main.post(tick)
  }
@@ -112,8 +115,15 @@ internal object GlassFrames {
    main.post{lastMipMs=mipMs;lastDeliveryMs=SystemClock.elapsedRealtime()-deliveredAt;pending=false;main.removeCallbacks(this);if(gen==epoch.current() && clients>0 && !suspended && captureDisplay==targetCaptureDisplay()){
     val bitmap=capturedBitmap
     if(response?.getBoolean("ok")==true && bitmap!=null){if(recoveryStarted>0L){RecoveryLog.add("Glass wake recovery first capture: D$captureDisplay ${response.getInt("width")}x${response.getInt("height")}; +${SystemClock.elapsedRealtime()-recoveryStarted} ms");recoveryStarted=0L;recoveryFailure=""};frame=GlassFrame(bitmap,response.getInt("width"),response.getInt("height"),response.getLong("stamp"),pyramid,physicalId=response.getString("physicalId")?:"unknown",displayId=captureDisplay,rotation=response.getInt("rotation"),exclusions=valid.joinToString(" | "));CoverBridge.remember(frame!!);CoverStartupTrace.capture(frame!!);HandoffStartupTrace.capture(frame!!);HandoffStartupTrace.event("CAPTURE_PIPELINE","captureAndQueueMs=${captureDone-started/1_000_000}; mipMs=$mipMs; deliveryMs=$lastDeliveryMs");listeners.toList().forEach{it()};val now=SystemClock.elapsedRealtime();if(measuredStart==0L)measuredStart=now;measuredFrames++;if(now-measuredStart>=1000){measuredFps=measuredFrames*1000f/(now-measuredStart);measuredFrames=0;measuredStart=now};if(now>=statusAt || statusDisplay!=captureDisplay){statusAt=now+1000;statusDisplay=captureDisplay;status="Content target $targetFps FPS · measured ${"%.1f".format(measuredFps)} captures/s · D$captureDisplay · ${response.getString("backend") ?: "layer capture"}"}}
-    else{frame=null;statusAt=0;status="Glass unavailable; debug-style fallback: $message";if(recoveryStarted>0L && recoveryFailure!=message){recoveryFailure=message;RecoveryLog.add("Glass wake recovery capture failed: $message")}}
-    main.postDelayed(this,if(frame==null)retryDelay(600L) else RenderQuality.delay(targetFps,SystemClock.elapsedRealtimeNanos()-started))
+    else{
+     val held=frame
+     if(!DeviceCompatibility.isFlip6(android.os.Build.MODEL) || held==null ||
+        !LiveEffectFadePolicy.active(SystemClock.elapsedRealtime()-held.stamp))frame=null
+     statusAt=0;status="Glass unavailable; debug-style fallback: $message"
+     if(recoveryStarted>0L && recoveryFailure!=message){recoveryFailure=message;RecoveryLog.add("Glass wake recovery capture failed: $message")}
+    }
+    val captureSucceeded=response?.getBoolean("ok")==true && capturedBitmap!=null
+    main.postDelayed(this,if(captureSucceeded)RenderQuality.delay(targetFps,SystemClock.elapsedRealtimeNanos()-started) else retryDelay(600L))
    }else{
     discarded++
     // Never published: these buffers cannot be referenced by a renderer.
