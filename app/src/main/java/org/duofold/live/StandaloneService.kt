@@ -132,6 +132,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
                 if(stillAwake && attempt<10){
                     settleFlipPanelScreenOff(attempt+1)
                 }else{
+                    GlassFrames.suspendCapture()
                     flipPanelHandoffPending=false
                     owner?.registry?.currentState=Lifecycle.State.CREATED
                     clearUnavailableEffect()
