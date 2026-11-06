@@ -18,7 +18,16 @@ public class FoldBackgroundService extends Service {
  private boolean lastReachable=false;
  private final rikka.shizuku.Shizuku.OnBinderReceivedListener binderReady=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder received");resetHelpers("Shizuku connection refreshed");kick();});
  private final rikka.shizuku.Shizuku.OnBinderDeadListener binderDead=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder death notification");resetHelpers("Shizuku disconnected");kick();});
- private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()))clearEffect();else nextReaderAttempt=0;if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();}};
+ private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){
+  ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());
+  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
+  boolean transientFlipHandoff=flip6 && Intent.ACTION_SCREEN_OFF.equals(i.getAction()) && getSystemService(PowerManager.class).isInteractive();
+  if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()) && !transientFlipHandoff)clearEffect();
+  else if(Intent.ACTION_SCREEN_ON.equals(i.getAction()))nextReaderAttempt=0;
+  if(!flip6)FoldAwakeDefault.reconnect();
+  if(transientFlipHandoff)RecoveryLog.add("Flip SCREEN_OFF treated as panel handoff; retaining hinge reader and live overlay");
+  kick();
+ }};
  private final android.database.ContentObserver foldSettingObserver=new android.database.ContentObserver(main){
   @Override public void onChange(boolean selfChange){if(!DeviceCompatibility.isFlip6(Build.MODEL))FoldAwakeDefault.reconnect();kick();}
  };
