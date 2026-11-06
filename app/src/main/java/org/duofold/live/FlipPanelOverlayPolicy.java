@@ -11,9 +11,10 @@ public final class FlipPanelOverlayPolicy {
 
     public static boolean shouldBeVisible(boolean displayOn, boolean interactive,
                                           boolean unlocked) {
-        // The Flip live overlay is allowed over the keyguard; only panel power and
-        // device interactivity determine whether the destination can be drawn.
-        return displayOn && interactive;
+        // Keep the cover overlay visible while the panel is transitioning from OFF to ON.
+        // FLAG_KEEP_SCREEN_ON on its window requests panel power; the physical power key
+        // still controls the device's interactive state.
+        return interactive;
     }
 
     /** A Flip panel swap is not a real screen-off when the other built-in panel is already on. */
