@@ -25,6 +25,13 @@ public final class FlipPreviewPolicy {
  public static boolean singlePanelFallback(boolean inner, int width, int height) {
   return inner && width > 0 && height > 0 && width / (float) height < 0.7f;
  }
+ /** Cover transition always travels toward the lower edge with the camera at the top. */
+ public static int coverShaderRotation(int displayRotation) {
+  if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
+  // The cover's physical camera-up orientation is the natural portrait reference,
+  // independent of transient Android display rotation changes.
+  return liveShaderRotation(0);
+ }
  /** Sensor events use elapsed-realtime nanoseconds. Never accept out-of-order samples. */
  public static final class Samples {
   private long timestamp;
