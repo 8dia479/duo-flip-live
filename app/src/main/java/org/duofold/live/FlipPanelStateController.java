@@ -60,7 +60,7 @@ public final class FlipPanelStateController {
 
     private void initialize() {
         CommandResult states = run("cmd", "device_state", "print-states");
-        if (!states.ok) {
+        if (!states.ok()) {
             status = "Flip panel state unavailable: " + states.summary();
             return;
         }
@@ -75,7 +75,7 @@ public final class FlipPanelStateController {
         }
 
         CommandResult policy = run("cmd", "device_state", "state");
-        if (!policy.ok) {
+        if (!policy.ok()) {
             status = "Flip panel state ownership unavailable: " + policy.summary();
             return;
         }
@@ -106,7 +106,7 @@ public final class FlipPanelStateController {
                 return;
             }
             CommandResult reset = run("cmd", "device_state", "state", "reset");
-            if (reset.ok) {
+            if (reset.ok()) {
                 ownsOverride = false;
                 appliedMode = FlipPanelTransitionPolicy.AUTO;
                 status = "Flip panel override released at full-open posture";
@@ -123,7 +123,7 @@ public final class FlipPanelStateController {
             // posture lets Samsung's own hinge policy select the cover panel at 0°.
             if (ownsOverride) {
                 CommandResult reset = run("cmd", "device_state", "state", "reset");
-                if (reset.ok) {
+                if (reset.ok()) {
                     ownsOverride = false;
                     appliedMode = FlipPanelTransitionPolicy.AUTO;
                     status = "No CLOSED state; returned to Samsung automatic posture";
@@ -139,7 +139,7 @@ public final class FlipPanelStateController {
         }
 
         CommandResult request = run("cmd", "device_state", "state", Integer.toString(stateId));
-        if (request.ok) {
+        if (request.ok()) {
             ownsOverride = true;
             appliedMode = target;
             status = target == FlipPanelTransitionPolicy.DUAL
@@ -179,7 +179,7 @@ public final class FlipPanelStateController {
             try {
                 if (ownsOverride) {
                     CommandResult reset = run("cmd", "device_state", "state", "reset");
-                    if (reset.ok) {
+                    if (reset.ok()) {
                         ownsOverride = false;
                         appliedMode = FlipPanelTransitionPolicy.AUTO;
                         status = "Flip panel override restored to automatic posture";
