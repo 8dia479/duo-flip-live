@@ -266,7 +266,6 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
             val transientOff=active && view?.isAttachedToWindow==true && !settings().getBoolean("dual",false) &&
                 flipPoseRetained && LiveAngles.effectAllowed &&
                 getSystemService(PowerManager::class.java).isInteractive &&
-                !getSystemService(KeyguardManager::class.java).isKeyguardLocked &&
                 displays.getDisplay(0)?.state==Display.STATE_OFF
             if(transientOff){
                 if(transientOffStarted==0L)transientOffStarted=now
