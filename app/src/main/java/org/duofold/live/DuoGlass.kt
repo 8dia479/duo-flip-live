@@ -498,7 +498,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      // Valid capture remains required by the existing handoff readiness protocol.
      return@runCatching
     }
-    val bridge=if(!liveValid && !preview && !frozen && !inner && !reflectedCover && display?.displayId==0 && !context.getSharedPreferences("standalone",0).getBoolean("dual",false))CoverBridge.forDisplay(display) else null
+    val bridge=if(!liveValid && !preview && !frozen && inner && !reflectedCover && display?.displayId==0 && !context.getSharedPreferences("standalone",0).getBoolean("dual",false))CoverBridge.forDisplay(display) else null
     val f=if(liveValid)live else bridge
     val fresh=liveValid || bridge!=null
     val shader=program
@@ -565,7 +565,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      if(regionalCompositor)applyRegionalBlur=true
      if(bridge!=null){
       bridgeDraw=true
-      HandoffStartupTrace.event("BRIDGE_DRAW","outgoing=${bridge.physicalId}; cover view=${width}x${height}; temporary projected glass")
+      HandoffStartupTrace.event("BRIDGE_DRAW","outgoing=${bridge.physicalId}; incoming inner view=${width}x${height}; temporary projected glass")
      }
      if(bridge==null && !preview && !frozen && f.width==size.x && f.height==size.y && (inner || (width==size.x && height==size.y)))rendered=f
     }else{
