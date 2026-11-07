@@ -262,7 +262,15 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         try {wm.addView(compose,lp);if(previewMode())PreviewTransition.markAnimation(compose);resumeIfUsable();requestCapture();note("Ready — Duo live shading running")}
         catch(e:Exception){removeHost();note("Could not attach overlay: ${e.javaClass.simpleName}")}
     }
-    private fun resumeIfUsable(){if(usable()){GlassFrames.resumeCapture();owner?.registry?.currentState=Lifecycle.State.RESUMED}}
+    private fun keepClosedCoverHostVisible():Boolean {
+        if(!DeviceCompatibility.isFlip6(Build.MODEL) || !settings().getBoolean("enabled",false) ||
+            !getSystemService(PowerManager::class.java).isInteractive || !anyBuiltInPanelOn() ||
+            screenWidth<=0 || screenHeight<=0)return false
+        val ratio=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)
+        val angle=LiveAngles.currentAngle()
+        return ratio>=.7f && angle.isFinite() && angle<=12f
+    }
+    private fun resumeIfUsable(){if(usable()){GlassFrames.resumeCapture();owner?.registry?.currentState=Lifecycle.State.RESUMED;if(keepClosedCoverHostVisible())view?.alpha=1f}}
     override fun onMovement(){requestCapture()}
     override fun onFrame(active:Boolean,strength:Float){
         val changed=this.active!=active;this.active=active;this.strength=strength
@@ -315,7 +323,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         refreshSecondary()
         handler.postDelayed(this,250)
     }}
-    private fun hide(){HandoffStartupTrace.event("HOST_HIDE","active=$active; fresh=${LiveAngles.fresh()}; allowed=${LiveAngles.effectAllowed}");view?.alpha=0f;active=false;handler.removeCallbacks(captureTask);captureQueued=false}
+    private fun hide(){HandoffStartupTrace.event("HOST_HIDE","active=$active; fresh=${LiveAngles.fresh()}; allowed=${LiveAngles.effectAllowed}");view?.alpha=if(keepClosedCoverHostVisible())1f else 0f;active=false;handler.removeCallbacks(captureTask);captureQueued=false}
     override fun onAccessibilityEvent(event:AccessibilityEvent)=Unit
     private fun requestCapture()=Unit // Retained host callback; this release never captures pixels.
     private fun updateDisplay(reason:String="display callback"){
