@@ -151,10 +151,10 @@ createNotificationChannel(this);}
   try{
    if(!foldEnabled){if(angles!=null){angles.stop();angles=null;}if(flip6)stopFlip6Runtime("Fold animation disabled");LiveAngles.status="Fold animation disabled";}
    else if(flip6){
-    if(now>=nextFlip6ReaderAttempt&&(flip6Runtime==null||!LiveAngles.effectFresh())){
-     if(flip6Runtime!=null)stopFlip6Runtime("Reconnecting to Flip 6 hinge sensor");
-     // The HAL stream can disconnect while the app is backgrounded.
-     // Retry promptly; the service remains foreground and supervises the reader.
+    if(now>=nextFlip6ReaderAttempt && flip6Runtime==null){
+     // A hinge sensor may be on-change and legitimately stay silent while the
+     // phone is stationary. Do not destroy/recreate its listener just because
+     // the last angle aged out; Shizuku reconnect is supervised inside the source.
      nextFlip6ReaderAttempt=now+2500L;
      flip6Runtime=new Flip6LiveRuntime(FoldBackgroundService.this);
      flip6Runtime.start();
