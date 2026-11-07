@@ -475,7 +475,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    // Secure keyguard layers cannot be read back as screenshots. Use Samsung's
    // compositor background blur on the lock screen instead of waiting for a
    // protected capture that Android will never provide.
-   val regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
+   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
    val projectedCompositor=regionalCompositor && rendering=="system_projected" && !keyguardLocked
    if(!regionalCompositor)projectedBlur.clear()
    try{
@@ -531,6 +531,16 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val f=if(liveValid)live else bridge
     val fresh=liveValid || bridge!=null
     val shader=program
+    if(previewFlip && rendering=="normal" && (f==null || shader==null)){
+     // The projected-glass shader requires a fresh same-panel screenshot. If
+     // Samsung blocks capture or the panel remaps before a frame arrives, use
+     // Samsung's compositor blur as an animated, screenshot-free fallback.
+     regionalCompositor=true
+     applyRegionalBlur=true
+     systemDraw=true
+     fallback("capture unavailable; compositor transition fallback")
+     return@runCatching
+    }
     if(fresh && shader!=null && f!=null){
      fallback("")
      if(bitmap!==f.bitmap){
@@ -623,8 +633,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     // Synchronize the owned blur child with the projected buffer, including clear/fallback frames.
     if(regionalCompositor){
      val quality=context.getSharedPreferences("standalone",0)
-     val progress=if(inner)amount else if(hingeAngle.isFinite())hingeAngle/90f else amount*110f/90f
-     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,rotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity,previewFlip && LiveAngles.externalDirection()<0) else emptyArray<FloatArray>()
+     val progress=amount
+     val blurRotation=if(previewFlip && !inner)Surface.ROTATION_90 else rotation
+     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,blurRotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity,previewFlip && inner && LiveAngles.externalDirection()<0) else emptyArray<FloatArray>()
      if(quality.getBoolean("notification_blur_solid_mask",false))regions.forEach{it[1]=1f}
      val accepted=projectedBlur.apply(surfaceControl,canvas.width,canvas.height,display,regions){applyTransactionToFrame(it)}
      projectedDraw=projectedCompositor && accepted && applyRegionalBlur
