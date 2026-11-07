@@ -78,6 +78,10 @@ internal class Flip6LiveRuntime(context: Context) {
         RecoveryLog.add(LiveAngles.readerDiagnostics)
     }
 
+    fun reconnectShizuku(reason: String) {
+        source?.reconnectNow(reason)
+    }
+
     private companion object { const val ANDROID_SENSOR_GRACE_MS = 500L }
 
     fun stop(message: String) {
