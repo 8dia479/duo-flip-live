@@ -20,6 +20,7 @@ public final class FlipSensorHalReader extends Binder {
     public static final int CMD_READ = 2;
     public static final int CMD_STOP = 3;
     public static final int CMD_CAPTURE_BINDER = 4;
+    public static final int CMD_UPDATE_PANEL_ANGLE = 5;
     private static final int SHIZUKU_DESTROY = 16777115;
 
     private int ownerUid = -1;
@@ -64,6 +65,14 @@ public final class FlipSensorHalReader extends Binder {
             if (capture == null) capture = new GlassCapture(caller);
             reply.writeNoException();
             reply.writeStrongBinder(capture);
+            return true;
+        }
+        if (code == CMD_UPDATE_PANEL_ANGLE) {
+            float value = data.readFloat();
+            if (Float.isFinite(value) && value >= 0f && value <= 180f) {
+                panelState.update(value);
+            }
+            reply.writeNoException();
             return true;
         }
         if (code == CMD_START) {
