@@ -11,15 +11,13 @@ public final class FlipPanelOverlayPolicy {
 
     public static boolean shouldBeVisible(boolean displayOn, boolean interactive,
                                           boolean unlocked) {
-        // Keep the cover overlay visible while the panel is transitioning from OFF to ON.
-        // FLAG_KEEP_SCREEN_ON on its window requests panel power; the physical power key
-        // still controls the device's interactive state.
-        return interactive;
+        // Keyguard and global interactive state must not hide an already-powered cover panel.
+        return displayOn;
     }
 
-    /** A Flip panel swap is not a real screen-off when the other built-in panel is already on. */
-    public static boolean isPanelHandoff(boolean flip6, boolean interactive, boolean unlocked,
-                                         boolean primaryOff, boolean secondaryOn) {
-        return flip6 && interactive && primaryOff && secondaryOn;
+    /** Accept either built-in panel as the live destination; display IDs can swap across posture changes. */
+    public static boolean isPanelHandoff(boolean flip6, boolean interactive,
+                                         boolean recentClosing, boolean anyBuiltInPanelOn) {
+        return flip6 && anyBuiltInPanelOn && (interactive || recentClosing);
     }
 }
