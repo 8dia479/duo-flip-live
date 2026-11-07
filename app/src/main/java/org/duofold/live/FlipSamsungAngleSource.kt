@@ -242,6 +242,11 @@ internal class FlipSamsungAngleSource(
         scheduleReconnect(message)
     }
 
+    /** Called when Shizuku's manager binder is received/dead; keep the public hinge sensor running. */
+    fun reconnectNow(reason: String) {
+        main.post { if (active) disconnectAndRetry(reason) }
+    }
+
     /** Keeps the Shizuku device-state controller in sync with the public Android hinge sensor. */
     fun updatePanelAngle(angle: Float) {
         if (!angle.isFinite() || angle !in 0f..180f) return
