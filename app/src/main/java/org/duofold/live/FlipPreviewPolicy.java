@@ -30,7 +30,7 @@ public final class FlipPreviewPolicy {
   if (displayRotation < 0 || displayRotation > 3) throw new IllegalArgumentException("Invalid rotation");
   // The cover's physical camera-up orientation is the natural portrait reference,
   // independent of transient Android display rotation changes.
-  return liveShaderRotation(0);
+  return 3;
  }
  /** Sensor events use elapsed-realtime nanoseconds. Never accept out-of-order samples. */
  public static final class Samples {
