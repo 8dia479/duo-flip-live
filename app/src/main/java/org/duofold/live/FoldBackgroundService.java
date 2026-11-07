@@ -18,8 +18,26 @@ public class FoldBackgroundService extends Service {
  private long asleepSince=-1,nextReaderAttempt;
  private String lastNotice="";
  private boolean lastReachable=false;
- private final rikka.shizuku.Shizuku.OnBinderReceivedListener binderReady=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder received");resetHelpers("Shizuku connection refreshed");kick();});
- private final rikka.shizuku.Shizuku.OnBinderDeadListener binderDead=()->main.post(()->{if(PrivilegedAccess.rootSelected())return;RecoveryLog.add("Shizuku Binder death notification");resetHelpers("Shizuku disconnected");kick();});
+ private final rikka.shizuku.Shizuku.OnBinderReceivedListener binderReady=()->main.post(()->{
+  if(PrivilegedAccess.rootSelected())return;
+  RecoveryLog.add("Shizuku Binder received");
+  if(DeviceCompatibility.isFlip6(Build.MODEL)){
+   if(flip6Runtime!=null)flip6Runtime.reconnectShizuku("Shizuku manager reconnected");
+   kick();return;
+  }
+  resetHelpers("Shizuku connection refreshed");kick();
+ });
+ private final rikka.shizuku.Shizuku.OnBinderDeadListener binderDead=()->main.post(()->{
+  if(PrivilegedAccess.rootSelected())return;
+  RecoveryLog.add("Shizuku Binder death notification");
+  if(DeviceCompatibility.isFlip6(Build.MODEL)){
+   // Do not tear down the Compose animation or public Android hinge listener.
+   // Only recycle the privileged user-service binding; its source retries with backoff.
+   if(flip6Runtime!=null)flip6Runtime.reconnectShizuku("Shizuku manager disconnected");
+   kick();return;
+  }
+  resetHelpers("Shizuku disconnected");kick();
+ });
  private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){
   ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());
   boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
