@@ -317,54 +317,6 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    canvas.drawRenderNode(aaNode)
   }catch(e:Exception){RecoveryLog.add("Edge AA fallback to lightweight: ${e.javaClass.simpleName}: ${e.message}");canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)}
  }
- private fun drawFlipFallback(canvas:Canvas,progress:Float,innerPanel:Boolean,orientation:Int){
-  val m=progress.coerceIn(0f,1f)
-  if(m<=.003f)return
-  val horizontal=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_270
-  val reversed=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_180
-  val extent=if(horizontal)height.toFloat() else width.toFloat()
-  if(extent<=1f)return
-  val save=canvas.save()
-  if(innerPanel){
-   val scale=FlipFallbackCurve.scale(m)
-   canvas.scale(scale,scale,width*.5f,height*.5f)
-  }
-  if(innerPanel && LiveAngles.externalDirection()<0)canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
-  try{
-   val count=96
-   val dark=IntArray(count+1)
-   val sweep=IntArray(count+1)
-   for(i in 0..count){
-    val f=i/count.toFloat()
-    val edge=if(reversed)1f-f else f
-    val shade=FlipFallbackCurve.darkening(m,edge)
-    val glow=FlipFallbackCurve.sweep(m,edge)
-    dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
-    sweep[i]=Color.argb((glow*255f).toInt(),255,255,255)
-   }
-   paint.shader=LinearGradient(if(horizontal)0f else 0f,if(horizontal)0f else 0f,
-    if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,
-    dark,null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-   paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,
-    sweep,null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-   val front=((1f-m).coerceIn(0f,1f)*extent)
-   val lineWidth=maxOf(2f,extent*.006f)
-   paint.shader=LinearGradient(
-    if(horizontal)0f else (if(reversed)width-front else front-lineWidth),
-    if(horizontal)(if(reversed)height-front else front-lineWidth) else 0f,
-    if(horizontal)0f else (if(reversed)width-front+lineWidth else front+lineWidth),
-    if(horizontal)(if(reversed)height-front+lineWidth else front+lineWidth) else 0f,
-    intArrayOf(Color.TRANSPARENT,Color.argb((90f*m).toInt(),255,255,255),Color.TRANSPARENT),
-    null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-   paint.shader=null
-  }finally{
-   paint.shader=null
-   canvas.restoreToCount(save)
-  }
- }
  private var bitmap:Bitmap?=null
  private var classic=false
  private var readinessGeneration=0
@@ -523,8 +475,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    // Secure keyguard layers cannot be read back as screenshots. Use Samsung's
    // compositor background blur on the lock screen instead of waiting for a
    // protected capture that Android will never provide.
-   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked ||
-      (previewFlip && rendering=="normal")) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
+   val regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
    val projectedCompositor=regionalCompositor && rendering=="system_projected" && !keyguardLocked
    if(!regionalCompositor)projectedBlur.clear()
    try{
@@ -580,16 +531,6 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val f=if(liveValid)live else bridge
     val fresh=liveValid || bridge!=null
     val shader=program
-    if(previewFlip && rendering=="normal" && (f==null || shader==null)){
-     // A live Flip transition must not disappear just because Samsung withholds
-     // a same-panel screenshot. Draw the original Duo-style moving glass sweep
-     // procedurally; this path has no Shizuku capture or vendor-blur dependency.
-     fallback("capture unavailable; procedural Flip glass")
-     applyRegionalBlur=regionalCompositor
-     systemDraw=regionalCompositor
-     drawFlipFallback(canvas,amount,inner,rotation)
-     return@runCatching
-    }
     if(fresh && shader!=null && f!=null){
      fallback("")
      if(bitmap!==f.bitmap){
@@ -669,9 +610,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      val horizontal=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_270
      val reversed=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_180
      if(previewFlip){
-      // Preserve visible motion on secure/background frames where screenshot
-      // capture is unavailable; the glass sweep is driven by the same live amount.
-      drawFlipFallback(canvas,amount,inner,rotation)
+      // A secure keyguard frame may be intentionally unavailable to app capture.
+      // Never replace that protected content with an opaque black overlay.
+      canvas.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR)
      }else{
       val colors=IntArray(65){i->var x=i/64f;if(reversed)x=1f-x;val edge=if(inner)1f-2*x else x;Color.argb((255*DuoShadeCurve.alpha(amount,edge,intensity)).toInt(),0,0,0)}
       paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,colors,null,Shader.TileMode.CLAMP)
@@ -682,9 +623,8 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     // Synchronize the owned blur child with the projected buffer, including clear/fallback frames.
     if(regionalCompositor){
      val quality=context.getSharedPreferences("standalone",0)
-     val progress=amount
-     val blurRotation=if(previewFlip && !inner)Surface.ROTATION_90 else rotation
-     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,blurRotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity,previewFlip && inner && LiveAngles.externalDirection()<0) else emptyArray<FloatArray>()
+     val progress=if(inner)amount else if(hingeAngle.isFinite())hingeAngle/90f else amount*110f/90f
+     val regions=if(applyRegionalBlur)CompositorBlurRegions.build(canvas.width,canvas.height,inner,rotation,progress,quality.getFloat("notification_blur_radius",250f)*canvas.width/width.toFloat(),intensity,previewFlip && LiveAngles.externalDirection()<0) else emptyArray<FloatArray>()
      if(quality.getBoolean("notification_blur_solid_mask",false))regions.forEach{it[1]=1f}
      val accepted=projectedBlur.apply(surfaceControl,canvas.width,canvas.height,display,regions){applyTransactionToFrame(it)}
      projectedDraw=projectedCompositor && accepted && applyRegionalBlur
