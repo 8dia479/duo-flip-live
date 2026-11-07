@@ -324,11 +324,12 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   val reversed=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_180
   val extent=if(horizontal)height.toFloat() else width.toFloat()
   if(extent<=1f)return
-  val save=if(innerPanel && LiveAngles.externalDirection()<0){
-   canvas.save()
-   canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
-   true
-  }else false
+  val save=canvas.save()
+  if(innerPanel){
+   val scale=1f-.03f*m
+   canvas.scale(scale,scale,width*.5f,height*.5f)
+  }
+  if(innerPanel && LiveAngles.externalDirection()<0)canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
   try{
    val count=96
    val dark=IntArray(count+1)
@@ -337,7 +338,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val f=i/count.toFloat()
     val edge=if(reversed)1f-f else f
     val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
-    val shade=(2f*m*kotlin.math.pow(outer,1.35f)).coerceIn(0f,.72f)
+    val shade=(2f*m*Math.pow(outer.toDouble(),1.35).toFloat()).coerceIn(0f,.72f)
     val band=(edge-(1f-m))/.095f
     val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
     dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
@@ -363,7 +364,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    paint.shader=null
   }finally{
    paint.shader=null
-   if(save)canvas.restore()
+   canvas.restoreToCount(save)
   }
  }
  private var bitmap:Bitmap?=null
