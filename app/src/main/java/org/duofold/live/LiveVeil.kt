@@ -39,12 +39,17 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     // Flip's physical handoff needs a responsive single-vsync interpolation, not the
     // Fold-oriented 120ms easing which visibly trails a fast clamshell movement.
     val smoothingMs=if(flipMode)minOf(configuredSmoothingMs,FrameSmoothing.FAST_MS) else configuredSmoothingMs
-    val displayRotation=LocalView.current.display?.rotation ?: Surface.ROTATION_0
+    val currentView=LocalView.current
+    val displayId=currentView.display?.displayId ?: 0
+    val displayRotation=currentView.display?.rotation ?: Surface.ROTATION_0
     val rotation=if(flipMode) {
         if(expanded) FlipPreviewPolicy.liveShaderRotation(displayRotation)
         else FlipPreviewPolicy.coverShaderRotation(displayRotation)
     } else displayRotation
     val hinge=LocalHinge.current
+    LaunchedEffect(flipMode,expanded,displayId,displayRotation,rotation) {
+        if(flipMode) RecoveryLog.add("FLIP_RENDER_TARGET panel="+(if(expanded) "inner" else "cover")+"; display="+displayId+"; displayRotation="+displayRotation+"; shaderRotation="+rotation)
+    }
     val latestExpanded by rememberUpdatedState(expanded)
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     DisposableEffect(Unit){
