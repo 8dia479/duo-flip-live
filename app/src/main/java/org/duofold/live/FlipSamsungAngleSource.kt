@@ -49,14 +49,18 @@ internal class FlipSamsungAngleSource(
     private var startedAtMs = 0L
     private var lastStatusAtMs = 0L
     private var lastDiagnostics = ""
+    private var reconnectAttempt = 0
+    private var consecutiveReadFailures = 0
     @Volatile private var pendingPanelAngle = Float.NaN
     private val panelStateUpdate = Runnable { sendPanelStateAngle(pendingPanelAngle) }
+    private val reconnect = Runnable {
+        if (active && binder == null && !binding) connect()
+    }
     private val timeout = Runnable {
         if (active && binding && binder == null) {
             binding = false
-            active = false
-            onStatus(appContext.getString(R.string.flip_hal_bind_timeout))
             releaseBinding()
+            scheduleReconnect(appContext.getString(R.string.flip_hal_bind_timeout))
         }
     }
 
@@ -70,6 +74,8 @@ internal class FlipSamsungAngleSource(
                 return
             }
             binder = service
+            reconnectAttempt = 0
+            consecutiveReadFailures = 0
             ensureWorker()
             worker?.post {
                 val started = transact(FlipSensorHalReader.CMD_START) != null
@@ -80,6 +86,7 @@ internal class FlipSamsungAngleSource(
                     onStatus(appContext.getString(
                         if (started) R.string.flip_hal_waiting else R.string.flip_hal_start_failed
                     ))
+                    if (!started) disconnectAndRetry("Shizuku user service did not start")
                 }
                 if (started) {
                     if (pendingPanelAngle.isFinite()) sendPanelStateAngle(pendingPanelAngle)
@@ -89,13 +96,15 @@ internal class FlipSamsungAngleSource(
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
-            binder = null
-            binding = false
-            val wasActive = active
-            active = false
-            main.removeCallbacks(timeout)
-            if (wasActive) onStatus(appContext.getString(R.string.flip_hal_disconnected))
-            releaseBinding()
+            main.post {
+                if (!active) {
+                    binder = null
+                    binding = false
+                    releaseBinding()
+                    return@post
+                }
+                disconnectAndRetry(appContext.getString(R.string.flip_hal_disconnected))
+            }
         }
     }
 
@@ -104,10 +113,16 @@ internal class FlipSamsungAngleSource(
             if (!active || binder == null) return
             val result = transact(FlipSensorHalReader.CMD_READ)
             if (result == null) {
-                main.post { if (active) onStatus(appContext.getString(R.string.flip_hal_read_failed)) }
-                worker?.postDelayed(this, POLL_INTERVAL_MS)
+                consecutiveReadFailures++
+                if (consecutiveReadFailures >= MAX_READ_FAILURES) {
+                    main.post { if (active) disconnectAndRetry(appContext.getString(R.string.flip_hal_read_failed)) }
+                } else {
+                    main.post { if (active) onStatus(appContext.getString(R.string.flip_hal_read_failed)) }
+                    worker?.postDelayed(this, POLL_INTERVAL_MS)
+                }
                 return
             }
+            consecutiveReadFailures = 0
             val diagnostics = buildString {
                 append(result.getString("recentLines").orEmpty())
                 val panelState = result.getString("panelState").orEmpty()
@@ -162,41 +177,69 @@ internal class FlipSamsungAngleSource(
 
     fun start() {
         if (active || binding) return
-        when {
-            !runCatching { Shizuku.pingBinder() }.getOrDefault(false) -> {
-                onStatus(appContext.getString(R.string.flip_hal_shizuku_off))
-                return
-            }
-            runCatching { Shizuku.checkSelfPermission() }.getOrDefault(-1)
-                    != android.content.pm.PackageManager.PERMISSION_GRANTED -> {
-                onStatus(appContext.getString(R.string.flip_hal_permission_needed))
-                return
-            }
-        }
         active = true
-        binding = true
+        reconnectAttempt = 0
+        consecutiveReadFailures = 0
         lastSequence = 0L
         lastState = ""
         lastDiagnostics = ""
         startedAtMs = SystemClock.elapsedRealtime()
         lastStatusAtMs = 0L
+        connect()
+    }
+
+    private fun connect() {
+        if (!active || binding || binder != null) return
+        when {
+            !runCatching { Shizuku.pingBinder() }.getOrDefault(false) -> {
+                scheduleReconnect(appContext.getString(R.string.flip_hal_shizuku_off))
+                return
+            }
+            runCatching { Shizuku.checkSelfPermission() }.getOrDefault(-1)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED -> {
+                scheduleReconnect(appContext.getString(R.string.flip_hal_permission_needed))
+                return
+            }
+        }
+        binding = true
         onStatus(appContext.getString(R.string.flip_hal_connecting))
         val nextArgs = Shizuku.UserServiceArgs(
             ComponentName(appContext, FlipSensorHalReader::class.java)
         ).daemon(false).processNameSuffix("flip_sensor_hal")
             .debuggable(BuildConfig.DEBUG).version(BuildConfig.VERSION_CODE)
         args = nextArgs
+        main.removeCallbacks(timeout)
         main.postDelayed(timeout, BIND_TIMEOUT_MS)
         try {
             Shizuku.bindUserService(nextArgs, connection)
         } catch (error: Exception) {
             main.removeCallbacks(timeout)
             binding = false
-            active = false
-            onStatus(appContext.getString(R.string.flip_hal_bind_failed))
             releaseBinding()
             Log.w(TAG, "Could not bind Samsung hinge reader", error)
+            scheduleReconnect(appContext.getString(R.string.flip_hal_bind_failed))
         }
+    }
+
+    private fun scheduleReconnect(message: String) {
+        if (!active) return
+        onStatus(message)
+        main.removeCallbacks(timeout)
+        main.removeCallbacks(reconnect)
+        val delay = FlipReconnectPolicy.delayMs(reconnectAttempt++)
+        RecoveryLog.add("Flip Shizuku reconnect scheduled in ${delay}ms: $message")
+        main.postDelayed(reconnect, delay)
+    }
+
+    private fun disconnectAndRetry(message: String) {
+        if (!active) return
+        main.removeCallbacks(timeout)
+        main.removeCallbacks(reconnect)
+        binder = null
+        binding = false
+        releaseBinding()
+        consecutiveReadFailures = 0
+        scheduleReconnect(message)
     }
 
     /** Keeps the Shizuku device-state controller in sync with the public Android hinge sensor. */
@@ -228,6 +271,7 @@ internal class FlipSamsungAngleSource(
 
     fun stop() {
         main.removeCallbacks(timeout)
+        main.removeCallbacks(reconnect)
         val wasBound = binder != null || binding
         active = false
         val currentWorker = worker
@@ -309,5 +353,6 @@ internal class FlipSamsungAngleSource(
         const val BIND_TIMEOUT_MS = 10_000L
         const val NO_LOG_NOTICE_MS = 3_000L
         const val STATUS_INTERVAL_MS = 1_000L
+        const val MAX_READ_FAILURES = 4
     }
 }
