@@ -15,22 +15,21 @@ public class FlipPanelOverlayPolicyTest {
         assertFalse(FlipPanelOverlayPolicy.shouldRetain(true, true, true, false));
     }
 
-    @Test public void keepOverlayVisibleDuringPanelPowerHandoffButNotDeviceSleep() {
-        assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(false, true, true));
-        assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(true, false, true));
+    @Test public void visibilityFollowsTargetPanelPowerNotGlobalInteractiveOrKeyguard() {
+        assertFalse(FlipPanelOverlayPolicy.shouldBeVisible(false, true, true));
+        assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, false, true));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, false));
         assertTrue(FlipPanelOverlayPolicy.shouldBeVisible(true, true, true));
     }
-    @Test public void activeFlipPanelSwapIsNotTreatedAsScreenOff() {
-        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, true, true));
+    @Test public void eitherBuiltInPanelCanKeepFlipHandoffAlive() {
+        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, true, false, true));
+        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, false, true, true));
     }
 
-    @Test public void realScreenOffOrLockedStateIsNotAPanelHandoff() {
-        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, false, true, true, true));
-        assertTrue(FlipPanelOverlayPolicy.isPanelHandoff(true, true, false, true, true));
-        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, false, true));
-        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, true, true, true, false));
-        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(false, true, true, true, true));
+    @Test public void realPowerOffOrNoActivePanelIsNotAFlipHandoff() {
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(false, true, true, true));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, false, false, false));
+        assertFalse(FlipPanelOverlayPolicy.isPanelHandoff(true, false, true, false));
     }
 
 }
