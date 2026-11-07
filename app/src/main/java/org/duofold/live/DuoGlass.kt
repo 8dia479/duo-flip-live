@@ -219,25 +219,19 @@ internal object DuoGlassShader {
  val running=frozenFrame==null && (if(flipMode)LiveAngles.effectFresh() else amount>.003f && LiveAngles.fresh())
  val context=androidx.compose.ui.platform.LocalContext.current
  val panelDisplayId=androidx.compose.ui.platform.LocalView.current.display?.displayId ?: 0
+  // Capture the display that actually hosts this renderer. Inferring the
+  // panel from hinge direction can select the other built-in display during
+  // Samsung's cover/inner display remap; then this SurfaceView never acquires
+  // GlassFrames and the original screenshot-backed shader has nothing to draw.
+  // The renderer remains same-panel only: it never projects the other panel.
   val captureDisplayId=runCatching{
-   val manager=context.getSystemService(android.hardware.display.DisplayManager::class.java)
-   val direction=LiveAngles.externalDirection()
-   // While closing, capture the cover panel's own launcher/home screen.
-   // While opening, capture the inner panel. Never stretch one panel's
-   // screenshot onto the other panel.
-   val preferInner=direction>0 || (direction==0 && LiveAngles.currentAngle()>=90f)
-   val active=manager.displays.filter{it.displayId in 0..1 && it.state==android.view.Display.STATE_ON}
-   val preferred=active.firstOrNull{panel->
-    val ratio=minOf(panel.mode.physicalWidth,panel.mode.physicalHeight).toFloat()/
-      maxOf(panel.mode.physicalWidth,panel.mode.physicalHeight)
-    (ratio<.7f)==preferInner
-   }
-   preferred?.displayId ?: active.firstOrNull()?.displayId ?: -1
+   context.getSystemService(android.hardware.display.DisplayManager::class.java)
+    .getDisplay(panelDisplayId)
+    ?.takeIf{it.displayId in 0..1 && it.state==android.view.Display.STATE_ON}
+    ?.displayId ?: -1
   }.getOrDefault(-1)
-  // Exactly one overlay owns capture: choose the physical panel matching the
-  // hinge direction, then fall back to the only lit built-in panel.
   val captureTargetDisplayId=if(flipMode)captureDisplayId else panelDisplayId
-  val captureRunning=running && (!flipMode || panelDisplayId==captureDisplayId)
+  val captureRunning=running && (!flipMode || captureDisplayId>=0)
   DisposableEffect(captureRunning,captureTargetDisplayId){
    if(captureRunning){GlassFrames.configure(context,captureTargetDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
