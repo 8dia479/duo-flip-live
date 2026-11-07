@@ -95,7 +95,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         RecoveryLog.add("Overlay received ${i.action}");diagnosticState("broadcast ${i.action}",true)
         if(i.action==Intent.ACTION_SCREEN_OFF){
             val possibleFlipSwap=DeviceCompatibility.isFlip6(Build.MODEL) &&
-                (getSystemService(PowerManager::class.java).isInteractive || recentFlipCloseHandoff())
+                (getSystemService(PowerManager::class.java).isInteractive || recentFlipCloseHandoff() || coverPanelOn())
             if(possibleFlipSwap){
                 // Keep Compose alive while Samsung routes power from the outgoing panel
                 // to the incoming one. A short polling window avoids a false screen-off
@@ -150,9 +150,19 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
         if(!::displays.isInitialized)return false
         return displays.displays.any{BuiltInPanel.accepts(it) && it.state==Display.STATE_ON}
     }
+    private fun coverPanelOn():Boolean {
+        if(!::displays.isInitialized || !DeviceCompatibility.isFlip6(Build.MODEL))return false
+        return displays.displays.any { panel ->
+            if(!BuiltInPanel.accepts(panel) || panel.state!=Display.STATE_ON)return@any false
+            val mode=panel.mode
+            val shortSide=minOf(mode.physicalWidth,mode.physicalHeight)
+            val longSide=maxOf(mode.physicalWidth,mode.physicalHeight)
+            longSide>0 && shortSide.toFloat()/longSide>=.7f
+        }
+    }
     private fun flipPanelHandoffActive():Boolean {
         if(!DeviceCompatibility.isFlip6(Build.MODEL) || !::displays.isInitialized)return false
-        val interactive=getSystemService(PowerManager::class.java).isInteractive
+        val interactive=getSystemService(PowerManager::class.java).isInteractive || coverPanelOn()
         return FlipPanelOverlayPolicy.isPanelHandoff(true,interactive,recentFlipCloseHandoff(),anyBuiltInPanelOn())
     }
     private val motionListener=LiveAngles.Listener { value,_ -> MotionGlass.angle(value);if(settings().getBoolean("motion_glass",true) || settings().getBoolean("motion_glass_cover_enabled",false))MotionGlass.refresh(this,motionUsable()) }
@@ -264,8 +274,7 @@ class StandaloneService : AccessibilityService(), DisplayManager.DisplayListener
     }
     private fun keepClosedCoverHostVisible():Boolean {
         if(!DeviceCompatibility.isFlip6(Build.MODEL) || !settings().getBoolean("enabled",false) ||
-            !getSystemService(PowerManager::class.java).isInteractive || !anyBuiltInPanelOn() ||
-            screenWidth<=0 || screenHeight<=0)return false
+            !coverPanelOn() || screenWidth<=0 || screenHeight<=0)return false
         val ratio=minOf(screenWidth,screenHeight).toFloat()/maxOf(screenWidth,screenHeight)
         val angle=LiveAngles.currentAngle()
         return ratio>=.7f && angle.isFinite() && angle<=12f
