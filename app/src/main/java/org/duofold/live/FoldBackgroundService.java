@@ -1,6 +1,8 @@
 package org.duofold.live;
 import android.app.*;
 import android.content.*;
+import android.hardware.display.DisplayManager;
+import android.view.Display;
 import android.os.*;
 import rikka.shizuku.Shizuku;
 /** User-enabled lifetime independent of the settings Activity. */
@@ -21,7 +23,8 @@ public class FoldBackgroundService extends Service {
  private final BroadcastReceiver screen=new BroadcastReceiver(){public void onReceive(Context c,Intent i){
   ClosureDiagnostics.screen(i.getAction());RecoveryLog.add("Background received "+i.getAction());
   boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
-  boolean transientFlipHandoff=flip6 && Intent.ACTION_SCREEN_OFF.equals(i.getAction()) && getSystemService(PowerManager.class).isInteractive();
+  boolean transientFlipHandoff=flip6 && Intent.ACTION_SCREEN_OFF.equals(i.getAction()) &&
+   (getSystemService(PowerManager.class).isInteractive() || recentFlipClosing() || coverPanelOn());
   if(Intent.ACTION_SCREEN_OFF.equals(i.getAction()) && !transientFlipHandoff)clearEffect();
   else if(Intent.ACTION_SCREEN_ON.equals(i.getAction()))nextReaderAttempt=0;
   if(!flip6)FoldAwakeDefault.reconnect();
@@ -45,6 +48,23 @@ public class FoldBackgroundService extends Service {
   FoldAwakeDefault.reconnect();InnerDecorRecovery.reconnect();
  }
  private void clearEffect(){StandaloneService service=StandaloneService.Companion.getInstance();if(service!=null)service.clearUnavailableEffect();}
+ private boolean recentFlipClosing(){
+  float angle=LiveAngles.currentAngle();
+  return DeviceCompatibility.isFlip6(Build.MODEL) && LiveAngles.effectFresh() &&
+   LiveAngles.externalDirection()<0 && Float.isFinite(angle) && angle<=12f;
+ }
+ private boolean coverPanelOn(){
+  if(!DeviceCompatibility.isFlip6(Build.MODEL))return false;
+  DisplayManager manager=getSystemService(DisplayManager.class);if(manager==null)return false;
+  for(Display display:manager.getDisplays()){
+   if(display==null || !BuiltInPanel.accepts(display) || display.getState()!=Display.STATE_ON)continue;
+   Display.Mode mode=display.getMode();
+   int shortSide=Math.min(mode.getPhysicalWidth(),mode.getPhysicalHeight());
+   int longSide=Math.max(mode.getPhysicalWidth(),mode.getPhysicalHeight());
+   if(longSide>0 && shortSide/(float)longSide>=.7f)return true;
+  }
+  return false;
+ }
  private void kick(){if(!running)return;main.removeCallbacks(supervise);main.post(supervise);}
  public static void reconnectHelpers(Context c){c.startForegroundService(new Intent(c,FoldBackgroundService.class).setAction("RECONNECT_HELPERS"));}
  public static String connectionReport(){
@@ -88,16 +108,18 @@ createNotificationChannel(this);}
   if(!wanted()){stopSelf();return;}
   boolean interactive=getSystemService(PowerManager.class).isInteractive();
   long now=SystemClock.elapsedRealtime();
-  if(interactive)asleepSince=-1;else if(asleepSince<0)asleepSince=now;
+  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
+  boolean coverAwake=flip6 && coverPanelOn();
+  if(interactive || coverAwake)asleepSince=-1;else if(asleepSince<0)asleepSince=now;
   HealthTrace.sample(FoldBackgroundService.this);
-  // Ignore transient screen-off during a panel handoff; suspend sustained sleep.
-  if(!interactive&&now-asleepSince>=3000){
+  // A folded Flip is still awake while the cover panel is powered, even if
+  // Android reports the outgoing inner panel's transient SCREEN_OFF globally.
+  if(!interactive&&!coverAwake&&now-asleepSince>=3000){
    if(angles!=null){angles.stop();angles=null;RecoveryLog.add("Reader suspended for screen-off");}
-   if(DeviceCompatibility.isFlip6(Build.MODEL)&&flip6Runtime!=null)stopFlip6Runtime("Screen asleep — Flip 6 reader suspended");
+   if(flip6&&flip6Runtime!=null)stopFlip6Runtime("Screen asleep — Flip 6 reader suspended");
    LiveAngles.status="Screen asleep — reader suspended";
    main.postDelayed(this,30000);return;
   }
-  boolean flip6=DeviceCompatibility.isFlip6(Build.MODEL);
   if(interactive&&!flip6)org.duofold.live.wallpaperlayer.WallpaperRestore.tick(FoldBackgroundService.this);
   if(!flip6&&RotationMigration.needed(FoldBackgroundService.this)){
    if(angles!=null){angles.stop();angles=null;}
