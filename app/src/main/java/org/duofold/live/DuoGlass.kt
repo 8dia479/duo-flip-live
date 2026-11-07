@@ -317,6 +317,55 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    canvas.drawRenderNode(aaNode)
   }catch(e:Exception){RecoveryLog.add("Edge AA fallback to lightweight: ${e.javaClass.simpleName}: ${e.message}");canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)}
  }
+ private fun drawFlipFallback(canvas:Canvas,progress:Float,innerPanel:Boolean,orientation:Int){
+  val m=progress.coerceIn(0f,1f)
+  if(m<=.003f)return
+  val horizontal=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_270
+  val reversed=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_180
+  val extent=if(horizontal)height.toFloat() else width.toFloat()
+  if(extent<=1f)return
+  val save=if(innerPanel && LiveAngles.externalDirection()<0){
+   canvas.save()
+   canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
+   true
+  }else false
+  try{
+   val count=96
+   val dark=IntArray(count+1)
+   val sweep=IntArray(count+1)
+   for(i in 0..count){
+    val f=i/count.toFloat()
+    val edge=if(reversed)1f-f else f
+    val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
+    val shade=(2f*m*kotlin.math.pow(outer,1.35f)).coerceIn(0f,.72f)
+    val band=(edge-(1f-m))/.095f
+    val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
+    dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
+    sweep[i]=Color.argb((glow*255f).toInt(),255,255,255)
+   }
+   paint.shader=LinearGradient(if(horizontal)0f else 0f,if(horizontal)0f else 0f,
+    if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,
+    dark,null,Shader.TileMode.CLAMP)
+   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
+   paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,
+    sweep,null,Shader.TileMode.CLAMP)
+   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
+   val front=((1f-m).coerceIn(0f,1f)*extent)
+   val lineWidth=maxOf(2f,extent*.006f)
+   paint.shader=LinearGradient(
+    if(horizontal)0f else (if(reversed)width-front else front-lineWidth),
+    if(horizontal)(if(reversed)height-front else front-lineWidth) else 0f,
+    if(horizontal)0f else (if(reversed)width-front+lineWidth else front+lineWidth),
+    if(horizontal)(if(reversed)height-front+lineWidth else front+lineWidth) else 0f,
+    intArrayOf(Color.TRANSPARENT,Color.argb((90f*m).toInt(),255,255,255),Color.TRANSPARENT),
+    null,Shader.TileMode.CLAMP)
+   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
+   paint.shader=null
+  }finally{
+   paint.shader=null
+   if(save)canvas.restore()
+  }
+ }
  private var bitmap:Bitmap?=null
  private var classic=false
  private var readinessGeneration=0
@@ -475,8 +524,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    // Secure keyguard layers cannot be read back as screenshots. Use Samsung's
    // compositor background blur on the lock screen instead of waiting for a
    // protected capture that Android will never provide.
-   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked ||
-      (previewFlip && rendering=="normal")) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
+   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
    val projectedCompositor=regionalCompositor && rendering=="system_projected" && !keyguardLocked
    if(!regionalCompositor)projectedBlur.clear()
    try{
@@ -533,13 +581,11 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val fresh=liveValid || bridge!=null
     val shader=program
     if(previewFlip && rendering=="normal" && (f==null || shader==null)){
-     // The projected-glass shader requires a fresh same-panel screenshot. If
-     // Samsung blocks capture or the panel remaps before a frame arrives, use
-     // Samsung's compositor blur as an animated, screenshot-free fallback.
-     regionalCompositor=true
-     applyRegionalBlur=true
-     systemDraw=true
-     fallback("capture unavailable; compositor transition fallback")
+     // A live Flip transition must not disappear just because Samsung withholds
+     // a same-panel screenshot. Draw the original Duo-style moving glass sweep
+     // procedurally; this path has no Shizuku capture or vendor-blur dependency.
+     fallback("capture unavailable; procedural Flip glass")
+     drawFlipFallback(canvas,amount,inner,rotation)
      return@runCatching
     }
     if(fresh && shader!=null && f!=null){
@@ -621,9 +667,9 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
      val horizontal=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_270
      val reversed=rotation==Surface.ROTATION_90||rotation==Surface.ROTATION_180
      if(previewFlip){
-      // A secure keyguard frame may be intentionally unavailable to app capture.
-      // Never replace that protected content with an opaque black overlay.
-      canvas.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR)
+      // Preserve visible motion on secure/background frames where screenshot
+      // capture is unavailable; the glass sweep is driven by the same live amount.
+      drawFlipFallback(canvas,amount,inner,rotation)
      }else{
       val colors=IntArray(65){i->var x=i/64f;if(reversed)x=1f-x;val edge=if(inner)1f-2*x else x;Color.argb((255*DuoShadeCurve.alpha(amount,edge,intensity)).toInt(),0,0,0)}
       paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,colors,null,Shader.TileMode.CLAMP)
