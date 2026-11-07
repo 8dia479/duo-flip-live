@@ -326,7 +326,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   if(extent<=1f)return
   val save=canvas.save()
   if(innerPanel){
-   val scale=1f-.03f*m
+   val scale=FlipFallbackCurve.scale(m)
    canvas.scale(scale,scale,width*.5f,height*.5f)
   }
   if(innerPanel && LiveAngles.externalDirection()<0)canvas.clipRect(0f,0f,width.toFloat(),height*.5f)
@@ -337,10 +337,8 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    for(i in 0..count){
     val f=i/count.toFloat()
     val edge=if(reversed)1f-f else f
-    val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
-    val shade=(2f*m*Math.pow(outer.toDouble(),1.35).toFloat()).coerceIn(0f,.72f)
-    val band=(edge-(1f-m))/.095f
-    val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
+    val shade=FlipFallbackCurve.darkening(m,edge)
+    val glow=FlipFallbackCurve.sweep(m,edge)
     dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
     sweep[i]=Color.argb((glow*255f).toInt(),255,255,255)
    }
