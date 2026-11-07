@@ -49,6 +49,8 @@ internal class FlipSamsungAngleSource(
     private var startedAtMs = 0L
     private var lastStatusAtMs = 0L
     private var lastDiagnostics = ""
+    @Volatile private var pendingPanelAngle = Float.NaN
+    private val panelStateUpdate = Runnable { sendPanelStateAngle(pendingPanelAngle) }
     private val timeout = Runnable {
         if (active && binding && binder == null) {
             binding = false
@@ -79,7 +81,10 @@ internal class FlipSamsungAngleSource(
                         if (started) R.string.flip_hal_waiting else R.string.flip_hal_start_failed
                     ))
                 }
-                if (started) worker?.post(poll)
+                if (started) {
+                    if (pendingPanelAngle.isFinite()) sendPanelStateAngle(pendingPanelAngle)
+                    worker?.post(poll)
+                }
             }
         }
 
@@ -191,6 +196,33 @@ internal class FlipSamsungAngleSource(
             onStatus(appContext.getString(R.string.flip_hal_bind_failed))
             releaseBinding()
             Log.w(TAG, "Could not bind Samsung hinge reader", error)
+        }
+    }
+
+    /** Keeps the Shizuku device-state controller in sync with the public Android hinge sensor. */
+    fun updatePanelAngle(angle: Float) {
+        if (!angle.isFinite() || angle !in 0f..180f) return
+        pendingPanelAngle = angle
+        val currentWorker = worker ?: return
+        currentWorker.removeCallbacks(panelStateUpdate)
+        currentWorker.post(panelStateUpdate)
+    }
+
+    private fun sendPanelStateAngle(angle: Float) {
+        if (!angle.isFinite() || angle !in 0f..180f) return
+        val remote = binder ?: return
+        val data = Parcel.obtain()
+        val reply = Parcel.obtain()
+        try {
+            data.writeInterfaceToken(FlipSensorHalReader.DESCRIPTOR)
+            data.writeFloat(angle)
+            if (!remote.transact(FlipSensorHalReader.CMD_UPDATE_PANEL_ANGLE, data, reply, 0)) return
+            reply.readException()
+        } catch (error: Exception) {
+            Log.w(TAG, "Could not forward Android hinge sensor angle", error)
+        } finally {
+            data.recycle()
+            reply.recycle()
         }
     }
 
