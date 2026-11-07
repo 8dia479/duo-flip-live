@@ -475,7 +475,8 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    // Secure keyguard layers cannot be read back as screenshots. Use Samsung's
    // compositor background blur on the lock screen instead of waiting for a
    // protected capture that Android will never provide.
-   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
+   var regionalCompositor=(rendering=="system" || rendering=="system_projected" || keyguardLocked ||
+      (previewFlip && rendering=="normal")) && windowCanvas==null && !preview && !frozen && !reflectedCover && !preparedStandby
    val projectedCompositor=regionalCompositor && rendering=="system_projected" && !keyguardLocked
    if(!regionalCompositor)projectedBlur.clear()
    try{
