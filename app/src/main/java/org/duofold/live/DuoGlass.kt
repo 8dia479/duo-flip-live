@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlin.math.pow
 
 /** AGSL adaptation of chuspeeism/iphone-duo's screenColor: 25 weighted taps,
  * 72px progressive radius, projected UI rays and edge darkening. MIT notice bundled. */
@@ -327,7 +328,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val f=i/count.toFloat()
     val edge=if(reversed)1f-f else f
     val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
-    val shade=(2f*m*kotlin.math.pow(outer,1.35f)).coerceIn(0f,.72f)
+    val shade=(2f*m*outer.pow(1.35f)).coerceIn(0f,.72f)
     val band=(edge-(1f-m))/.095f
     val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
     dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
