@@ -8,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlin.math.pow
 
 /** AGSL adaptation of chuspeeism/iphone-duo's screenColor: 25 weighted taps,
  * 72px progressive radius, projected UI rays and edge darkening. MIT notice bundled. */
@@ -312,47 +311,6 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    canvas.drawRenderNode(aaNode)
   }catch(e:Exception){RecoveryLog.add("Edge AA fallback to lightweight: ${e.javaClass.simpleName}: ${e.message}");canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)}
  }
- private fun drawFlipFallback(canvas:Canvas,progress:Float,innerPanel:Boolean,orientation:Int){
-  val m=progress.coerceIn(0f,1f)
-  if(m<=.003f)return
-  val horizontal=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_270
-  val reversed=orientation==Surface.ROTATION_90 || orientation==Surface.ROTATION_180
-  val extent=if(horizontal)height.toFloat() else width.toFloat()
-  if(extent<=1f)return
-  val save=canvas.save()
-  try{
-   val count=96
-   val dark=IntArray(count+1)
-   val sweep=IntArray(count+1)
-   for(i in 0..count){
-    val f=i/count.toFloat()
-    val edge=if(reversed)1f-f else f
-    val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
-    val shade=(2f*m*outer.pow(1.35f)).coerceIn(0f,.72f)
-    val band=(edge-(1f-m))/.095f
-    val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
-    dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
-    sweep[i]=Color.argb((glow*255f).toInt(),255,255,255)
-   }
-   paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,dark,null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-   paint.shader=LinearGradient(0f,0f,if(horizontal)0f else width.toFloat(),if(horizontal)height.toFloat() else 0f,sweep,null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-   val front=((1f-m).coerceIn(0f,1f)*extent)
-   val lineWidth=maxOf(2f,extent*.006f)
-   paint.shader=LinearGradient(
-    if(horizontal)0f else (if(reversed)width-front else front-lineWidth),
-    if(horizontal)(if(reversed)height-front else front-lineWidth) else 0f,
-    if(horizontal)0f else (if(reversed)width-front+lineWidth else front+lineWidth),
-    if(horizontal)(if(reversed)height-front+lineWidth else front+lineWidth) else 0f,
-    intArrayOf(Color.TRANSPARENT,Color.argb((90f*m).toInt(),255,255,255),Color.TRANSPARENT),
-    null,Shader.TileMode.CLAMP)
-   canvas.drawRect(0f,0f,width.toFloat(),height.toFloat(),paint)
-  }finally{
-   paint.shader=null
-   canvas.restoreToCount(save)
-  }
- }
  private var bitmap:Bitmap?=null
  private var classic=false
  private var readinessGeneration=0
@@ -574,14 +532,6 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val f=if(liveValid)live else bridge
     val fresh=liveValid || bridge!=null
     val shader=program
-    if(previewFlip && rendering=="normal" && (f==null || shader==null)){
-     // Restore the proven screenshot-free Flip transition used by the earlier
-     // full-screen animation commit. Keep it as a missing-capture fallback only:
-     // the screenshot-backed original shader still wins whenever a valid frame exists.
-     fallback("capture unavailable; procedural Flip glass")
-     drawFlipFallback(canvas,amount,inner,rotation)
-     return@runCatching
-    }
     if(fresh && shader!=null && f!=null){
      fallback("")
      if(bitmap!==f.bitmap){
