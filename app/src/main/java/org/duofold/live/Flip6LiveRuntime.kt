@@ -12,7 +12,6 @@ import android.os.SystemClock
 internal class Flip6LiveRuntime(context: Context) {
     private val appContext = context.applicationContext
     private val estimator = FlipSamsungHingeEstimator()
-    private val androidSensorEstimator = FlipSamsungHingeEstimator()
     private val sensorManager = appContext.getSystemService(SensorManager::class.java)
     private val hingeSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
     private var source: FlipSamsungAngleSource? = null
@@ -27,9 +26,12 @@ internal class Flip6LiveRuntime(context: Context) {
             val stamp = event.timestamp.takeIf { it > 0L } ?: SystemClock.elapsedRealtimeNanos()
             lastAndroidSensorAtMs = SystemClock.elapsedRealtime()
             halSuppressedByAndroidSensor = true
-            androidSensorEstimator.add(raw, stamp, FlipSensorHalParser.SOURCE_FOLDING)
-            val value = androidSensorEstimator.estimate(SystemClock.elapsedRealtimeNanos())
-            if (value.isFinite()) LiveAngles.publishExternalAngle(value)
+            // TYPE_HINGE_ANGLE is already the system's fused physical hinge
+            // reading. Do not run it through the HAL spike-confirmation estimator:
+            // that estimator intentionally waits for a second sample on large
+            // jumps, which makes a fast clamshell close visibly trail by a poll.
+            // The renderer applies its own short, bounded frame interpolation.
+            LiveAngles.publishExternalAngle(raw)
             source?.updatePanelAngle(raw)
         }
 
@@ -39,7 +41,6 @@ internal class Flip6LiveRuntime(context: Context) {
     fun start() {
         if (source != null) return
         estimator.reset()
-        androidSensorEstimator.reset()
         lastAndroidSensorAtMs = 0L
         halSuppressedByAndroidSensor = false
         val next = FlipSamsungAngleSource(
@@ -89,7 +90,6 @@ internal class Flip6LiveRuntime(context: Context) {
         sensorRegistered = false
         lastAndroidSensorAtMs = 0L
         halSuppressedByAndroidSensor = false
-        androidSensorEstimator.reset()
         val previous = source
         source = null
         previous?.stop()
