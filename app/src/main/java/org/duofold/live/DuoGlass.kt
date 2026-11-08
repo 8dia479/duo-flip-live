@@ -505,9 +505,16 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
     val size=Point()
     if(!preview && !frozen)CoverBridge.size(display,size)
     val live=frame
+    // On Flip 6, capture is explicitly requested from the display hosting
+    // this renderer. During Samsung's panel remap, getUniqueId() can describe
+    // the remapped logical display differently from the capture service's
+    // physicalId. The matched displayId is therefore the authoritative
+    // same-panel check; retain rotation and geometry/freshness validation.
+    val samePanelIdentity=if(previewFlip) live?.displayId==display?.displayId
+      else live?.physicalId==CoverBridge.identity(display)
     val samePanelFrame=live!=null &&
      (live.displayId<0 || live.displayId==display?.displayId) &&
-     live.physicalId==CoverBridge.identity(display) &&
+     samePanelIdentity &&
      live.rotation==captureRotation() &&
      GlassFramePolicy.usable(live.stamp,SystemClock.elapsedRealtime(),live.width,live.height,size.x,size.y)
     // Never project the inner-display screenshot onto the cover panel.
