@@ -89,7 +89,7 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
                     if(!visualAngle.isFinite() && knownFlipPose){
                         visualAngle=angle
                         lastGoodSampleAtMs=angleTimestampMs
-                        amount=FlipGlassCurve.progress(visualAngle,latestExpanded,LiveAngles.externalDirection(),openThreshold,closedThreshold)
+                        amount=DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
                     }
                     val ageMs=(SystemClock.elapsedRealtime()-lastGoodSampleAtMs).coerceAtLeast(0L)
                     if(lastGoodSampleAtMs>0L && LiveEffectFadePolicy.active(ageMs)){
