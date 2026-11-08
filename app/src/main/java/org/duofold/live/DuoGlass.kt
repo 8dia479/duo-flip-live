@@ -4,9 +4,12 @@ import android.graphics.*
 import android.hardware.display.DisplayManager
 import android.os.SystemClock
 import android.view.*
+import kotlin.math.pow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.viewinterop.AndroidView
 
 /** AGSL adaptation of chuspeeism/iphone-duo's screenColor: 25 weighted taps,
@@ -230,19 +233,22 @@ internal object DuoGlassShader {
   // GlassFrames.surface() below synchronizes the final target to that SurfaceView.
   val captureTargetDisplayId=if(flipMode)panelDisplayId.takeIf{it in 0..1} ?: -1 else panelDisplayId
   val captureRunning=running && (!flipMode || captureTargetDisplayId>=0)
+  // Reuse the main-branch DuoGlass renderer, but constrain Flip's effect host
+  // to the upper half of the panel instead of covering the entire display.
+  val effectModifier=if(flipMode) Modifier.fillMaxWidth().fillMaxHeight(0.5f) else Modifier.fillMaxSize()
   DisposableEffect(captureRunning,captureTargetDisplayId){
    if(captureRunning){GlassFrames.configure(context,captureTargetDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
   }
  if(opaqueContent && frozenFrame!=null){
-  AndroidView(factory={ScreenshotGlassView(it)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
+  AndroidView(factory={ScreenshotGlassView(it)},modifier=effectModifier,update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
   return
  }
  if(!flipMode && !reflectedCover && frozenFrame==null && liveFrame==null && !context.getSharedPreferences("standalone",0).getBoolean("dual",false)){
   AndroidView(factory={PreparedGlassHost(it)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frame,amount,intensity,inner,rotation,angle)})
   return
  }
- AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover,previewFlip=flipMode)},modifier=Modifier.fillMaxSize(),update={it.alpha=renderAlpha;it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
+ AndroidView(factory={FrostSurface(it,reflectedCover=reflectedCover,previewFlip=flipMode)},modifier=effectModifier,update={it.alpha=renderAlpha;it.configure(frame,amount,intensity,inner,rotation,frozenFrame!=null,angle,opaqueContent,if(liveFrame!=null)IncomingGhostDiagnostic.mode else 0)})
 }
 internal class FrostSurface(context:Context,private val preview:Boolean=false,private val reflectedCover:Boolean=false,private val previewFlip:Boolean=false):SurfaceView(context),SurfaceHolder.Callback {
  private val projectedBlur=ProjectedSystemGlassBlur(context)
@@ -323,7 +329,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    for(i in 0..count){
     val f=i/count.toFloat();val edge=if(reversed)1f-f else f
     val outer=((edge-.2f)/.8f).coerceIn(0f,1f)
-    val shade=(2f*m*kotlin.math.pow(outer,1.35f)).coerceIn(0f,.72f)
+    val shade=(2f*m*outer.pow(1.35f)).coerceIn(0f,.72f)
     val band=(edge-(1f-m))/.095f
     val glow=(kotlin.math.exp(-band*band)*.72f*m*(1f-m)).coerceIn(0f,.32f)
     dark[i]=Color.argb((shade*255f).toInt(),0,0,0)
