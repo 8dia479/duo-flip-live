@@ -409,7 +409,18 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
  init{setZOrderOnTop(true);holder.setFormat(PixelFormat.TRANSLUCENT);holder.addCallback(this);importantForAccessibility=IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
   try{classic=ScreenshotRenderPolicy.classic(context.getSharedPreferences("standalone",0).getString("animation_style","duo"),context.getSharedPreferences("standalone",0).getString("animation_mode","windowed"),context.getSharedPreferences("standalone",0).getBoolean("dual",false));program=RuntimeShader(if(classic)ClassicGlassShader.source else DuoGlassShader.source)}catch(e:Exception){RecoveryLog.add("Glass shader compilation failed: ${e.message}")}
  }
- fun configure(next:GlassFrame?,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozen:Boolean=false,angle:Float=Float.NaN,opaqueContent:Boolean=false,diagnosticMode:Int=0){if(this.inner!=inner){
+ fun configure(next:GlassFrame?,amount:Float,intensity:Float,inner:Boolean,rotation:Int,frozen:Boolean=false,angle:Float=Float.NaN,opaqueContent:Boolean=false,diagnosticMode:Int=0){
+  // The Compose host may keep its original display association while Samsung
+  // remaps the physical panel underneath the retained overlay. Resolve capture
+  // against this renderer View on every update, not only when its Surface is
+  // first created; this keeps the incoming inner-panel capture on the same
+  // logical display as the actual glass renderer.
+  if(previewFlip && !preview){
+   val rendererDisplayId=display?.displayId
+   if(rendererDisplayId!=null && rendererDisplayId in 0..1)
+    GlassFrames.configure(context,rendererDisplayId)
+  }
+  if(this.inner!=inner){
    readinessGeneration++;readinessPending=false;lastReadyCapture=-1;lastReadyEndpoint=-1
    bitmap=null
   }
