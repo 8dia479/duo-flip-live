@@ -233,15 +233,15 @@ internal object DuoGlassShader {
   // GlassFrames.surface() below synchronizes the final target to that SurfaceView.
   val captureTargetDisplayId=if(flipMode)panelDisplayId.takeIf{it in 0..1} ?: -1 else panelDisplayId
   val captureRunning=running && (!flipMode || captureTargetDisplayId>=0)
-  // Reuse the main-branch DuoGlass renderer, but constrain Flip's effect host
-  // to the upper half of the panel instead of covering the entire display.
-  val effectModifier=if(flipMode) Modifier.fillMaxWidth().fillMaxHeight(0.5f) else Modifier.fillMaxSize()
+  // Keep the renderer at native full-panel size so its hinge projection and
+  // screenshot coordinates remain identical to main; clip only what is visible.
+  val effectModifier=Modifier.fillMaxSize()
   DisposableEffect(captureRunning,captureTargetDisplayId){
    if(captureRunning){GlassFrames.configure(context,captureTargetDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
   }
  if(opaqueContent && frozenFrame!=null){
-  AndroidView(factory={ScreenshotGlassView(it)},modifier=effectModifier,update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
+  AndroidView(factory={ScreenshotGlassView(it,clipTopHalf=flipMode)},modifier=effectModifier,update={it.alpha=renderAlpha;it.configure(frozenFrame,amount,intensity,inner,rotation,angle)})
   return
  }
  if(!flipMode && !reflectedCover && frozenFrame==null && liveFrame==null && !context.getSharedPreferences("standalone",0).getBoolean("dual",false)){
@@ -287,7 +287,7 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   val w=maxOf(1,width/divisor)*factor;val h=maxOf(1,height/divisor)*factor
   if(w!=bufferWidth || h!=bufferHeight){bufferWidth=w;bufferHeight=h;holder.setFixedSize(w,h)}
  }
- override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int){super.onSizeChanged(w,h,oldw,oldh);updateBufferSize()}
+ override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int){super.onSizeChanged(w,h,oldw,oldh);clipBounds=if(previewFlip)Rect(0,0,w,h/2) else null;updateBufferSize()}
  private val angleListener=LiveAngles.Listener { value,_ ->
   if(!preparedStandby && value.isFinite() && value!=targetAngle){targetAngle=value;requestDraw()}
  }
@@ -732,7 +732,7 @@ private val screenshotBackdropPaint=Paint(Paint.FILTER_BITMAP_FLAG)
  * distorted content come from the same frame. The detached shader painter's CLEAR
  * and cutouts are isolated in its saveLayer, so they cannot erase the backdrop.
  * No child SurfaceView is attached to this window. Normal live mode is unchanged. */
-internal class ScreenshotGlassView(context:Context):View(context){
+internal class ScreenshotGlassView(context:Context,private val clipTopHalf:Boolean=false):View(context){
  private val painter=FrostSurface(context)
  private var frame:GlassFrame?=null
  private var stamp=0L
@@ -745,7 +745,7 @@ internal class ScreenshotGlassView(context:Context):View(context){
   painter.configure(frame,amount,intensity,inner,rotation,true,angle,true)
   postInvalidateOnAnimation()
  }
- override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int){super.onSizeChanged(w,h,oldw,oldh);painter.layout(0,0,w,h)}
+ override fun onSizeChanged(w:Int,h:Int,oldw:Int,oldh:Int){super.onSizeChanged(w,h,oldw,oldh);clipBounds=if(clipTopHalf)Rect(0,0,w,h/2) else null;painter.layout(0,0,w,h)}
  override fun onDraw(canvas:Canvas){
   super.onDraw(canvas)
   frame?.let{drawScreenshotBackdrop(canvas,it,width,height)}
