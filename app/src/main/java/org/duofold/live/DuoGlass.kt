@@ -8,8 +8,6 @@ import kotlin.math.pow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.viewinterop.AndroidView
 
 /** AGSL adaptation of chuspeeism/iphone-duo's screenColor: 25 weighted taps,
