@@ -22,7 +22,9 @@ internal object GlassFrames {
  private var measuredStart=0L;private var measuredFrames=0;private var measuredFps=0f
  fun configure(context:android.content.Context,displayId:Int=0){
   screenshotMode=context.getSharedPreferences("standalone",0).getBoolean("dual",false)&&context.getSharedPreferences("standalone",0).getBoolean("screenshot_camera_startup",false)
-  targetFps=RenderQuality.fps(context.getSharedPreferences("standalone",0).getInt("content_fps",120))
+  val requestedFps=RenderQuality.fps(context.getSharedPreferences("standalone",0).getInt("content_fps",120))
+  // Hinge motion is rendered at display vsync; captures only refresh the backdrop.
+  targetFps=if(DeviceCompatibility.isFlip6(android.os.Build.MODEL))minOf(requestedFps,30) else requestedFps
   if(DeviceCompatibility.isFlip6(android.os.Build.MODEL) && displayId in 0..1 && flipCaptureDisplay!=displayId){
    flipCaptureDisplay=displayId
    if(clients>0)requestFreshCapture()
