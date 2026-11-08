@@ -34,7 +34,6 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
     val tuning=remember(expanded){PlainFadeSettings.read(plainPrefs,expanded)}
     val handoff=HandoffSettings.angle(plainPrefs.getFloat("handoff_angle",HandoffSettings.DEFAULT))
     val openThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
-    val closedThreshold=LocalContext.current.getSharedPreferences("standalone",0).getFloat("closed_threshold",2f)
     val configuredSmoothingMs=FrameSmoothing.sanitize(LocalContext.current.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
     // Flip's physical handoff needs a responsive single-vsync interpolation, not the
     // Fold-oriented 120ms easing which visibly trails a fast clamshell movement.
@@ -77,7 +76,7 @@ internal fun DuoLiveShade(host: StandaloneFoldHost, intensity: Float, innerPanel
                     previous=now
                     visualAngle=FrameSmoothing.step(visualAngle,angle,dt,smoothingMs)
                     if(flipMode)lastGoodSampleAtMs=angleTimestampMs
-                    amount=if(flipMode)FlipGlassCurve.progress(visualAngle,latestExpanded,LiveAngles.externalDirection(),openThreshold,closedThreshold)
+                    amount=if(flipMode)DuoShadeCurve.progress(visualAngle,latestExpanded,openThreshold)
                       else if(latestExpanded && !plain && frozenFrame==null && !plainPrefs.getBoolean("dual",false))MotionGlass.innerAmount(DuoShadeCurve.progress(visualAngle,true,openThreshold),angle>=FoldThreshold.sanitize(openThreshold))
                       else if(latestExpanded && angle>=FoldThreshold.sanitize(openThreshold))0f
                       else if(plain)PlainFadeCurve.progress(visualAngle,latestExpanded,openThreshold,handoff)
