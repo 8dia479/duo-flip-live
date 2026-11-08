@@ -456,13 +456,12 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
   if(previewFlip && !preview){
    val rendererDisplayId=display?.displayId
    if(rendererDisplayId!=null && rendererDisplayId in 0..1){
-    GlassFrames.configure(context,rendererDisplayId)
-    // A Flip panel handoff can move this retained SurfaceView to the other
-    // logical display without recreating it. Refresh the exclusion-surface
-    // registration as well as the capture target; otherwise GlassFrames keeps
-    // filtering this still-valid SurfaceControl under its old display ID,
-    // returns no screenshot, and drawFlipFallback paints the moving line.
+    // Register the SurfaceView's current display before requesting capture.
+    // A Flip handoff can move this retained view without recreating its
+    // SurfaceControl; stale display metadata makes the capture worker reject
+    // the only valid exclusion surface and fall back to the moving-line effect.
     if(holder.surface.isValid)GlassFrames.surface(this,surfaceControl)
+    GlassFrames.configure(context,rendererDisplayId)
    }
   }
   if(this.inner!=inner){
