@@ -76,8 +76,20 @@ internal object GlassFrames {
  private val surfaces=LinkedHashMap<Any,ExclusionSurface>()
  fun surface(key:Any,sc:SurfaceControl?){
   if(sc==null)surfaces.remove(key) else{
-   val displayId=(key as? android.view.View)?.display?.displayId ?: 0
+   // Use the display attached to the actual capture-exclusion SurfaceView.
+   // A host Compose View can retain a different logical display ID during
+   // Samsung's cover/inner panel remap; capturing that ID yields no matching
+   // exclusion layers and leaves the original Duo shader without a frame.
+   val actualDisplayId=(key as? android.view.View)?.display?.displayId
+   val displayId=actualDisplayId ?: 0
    surfaces[key]=ExclusionSurface(sc,displayId)
+   if(DeviceCompatibility.isFlip6(android.os.Build.MODEL) &&
+      actualDisplayId!=null && actualDisplayId in 0..1 &&
+      flipCaptureDisplay!=actualDisplayId){
+    flipCaptureDisplay=actualDisplayId
+    if(clients>0)requestFreshCapture()
+    RecoveryLog.add("Flip glass capture target synchronized to SurfaceView D$actualDisplayId")
+   }
   }
  }
  private fun resetMeasurement(){measuredStart=SystemClock.elapsedRealtime();measuredFrames=0;measuredFps=0f}
