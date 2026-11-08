@@ -464,7 +464,10 @@ internal class FrostSurface(context:Context,private val preview:Boolean=false,pr
    readinessGeneration++;readinessPending=false;lastReadyCapture=-1;lastReadyEndpoint=-1
    bitmap=null
   }
-  if(angle.isFinite() && (preparedStandby || revealPreparedDraw))targetAngle=angle
+  // Flip's retained renderer does not register the legacy LiveAngles listener.
+  // Its Compose owner supplies the current hinge angle on every configure call,
+  // so keep targetAngle synchronized here instead of retaining a standby sample.
+  if(angle.isFinite() && (previewFlip || preparedStandby || revealPreparedDraw))targetAngle=angle
   this.diagnosticMode=diagnosticMode;this.opaqueContent=opaqueContent;this.hingeAngle=angle;this.frozen=frozen;frame=next;this.amount=amount;this.intensity=intensity;this.inner=inner;this.rotation=rotation
   smoothingMs=FrameSmoothing.sanitize(context.getSharedPreferences("standalone",0).getFloat("smoothing_ms",FrameSmoothing.DEFAULT_MS))
   openThreshold=context.getSharedPreferences("standalone",0).getFloat("open_threshold",172f)
