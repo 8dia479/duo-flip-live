@@ -224,14 +224,12 @@ internal object DuoGlassShader {
   // Samsung's cover/inner display remap; then this SurfaceView never acquires
   // GlassFrames and the original screenshot-backed shader has nothing to draw.
   // The renderer remains same-panel only: it never projects the other panel.
-  val captureDisplayId=runCatching{
-   context.getSystemService(android.hardware.display.DisplayManager::class.java)
-    .getDisplay(panelDisplayId)
-    ?.takeIf{it.displayId in 0..1 && it.state==android.view.Display.STATE_ON}
-    ?.displayId ?: -1
-  }.getOrDefault(-1)
-  val captureTargetDisplayId=if(flipMode)captureDisplayId else panelDisplayId
-  val captureRunning=running && (!flipMode || captureDisplayId>=0)
+  // Do not gate acquisition on the host View's display power state:
+  // during a Flip panel remap that host can briefly report the outgoing panel
+  // while the actual SurfaceView is already attached to the incoming one.
+  // GlassFrames.surface() below synchronizes the final target to that SurfaceView.
+  val captureTargetDisplayId=if(flipMode)panelDisplayId.takeIf{it in 0..1} ?: -1 else panelDisplayId
+  val captureRunning=running && (!flipMode || captureTargetDisplayId>=0)
   DisposableEffect(captureRunning,captureTargetDisplayId){
    if(captureRunning){GlassFrames.configure(context,captureTargetDisplayId);GlassFrames.acquire()}
    onDispose{if(captureRunning)GlassFrames.release()}
